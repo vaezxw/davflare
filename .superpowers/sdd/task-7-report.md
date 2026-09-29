@@ -70,5 +70,5 @@ npx vitest run src/app/__tests__/AccountDetailView.test.tsx src/app/__tests__/Ac
 
 ### Commit
 
-- **SHA:** `3f2413cda463b4782c6abb09dae2cd04fa8ecad8`
+- **SHA:** `a5724b9320a4ac8b80f401d8ab32f4dda1de2e48`
 - **Subject:** `fix: open-in-drive paths for admin account homes`
