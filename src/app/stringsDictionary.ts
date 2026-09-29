@@ -161,6 +161,10 @@ const entries: Record<string, DictionaryEntry> = {
     zh: "拖放图片上传。公开地址只在站点域名：https://<SITES_HOST>/i/{id}",
     en: "Drop images to upload. Public URLs live only on the sites host: https://<SITES_HOST>/i/{id}",
   },
+  imagesPublicHint: {
+    zh: "拖放图片上传。公开地址：https://{host}/文件名",
+    en: "Drop images to upload. Public URL: https://{host}/filename",
+  },
   imagesHostMissing: { zh: "未配置 SITES_HOST，公开地址打不开", en: "SITES_HOST is not set — public URLs will not open" },
   imagesHostMissingHint: {
     zh: "给这个 Pages 项目绑定自定义域，并设置 Pages 环境变量 SITES_HOST（只要主机名，不要 https://），然后重新部署。在此之前图床公开地址打不开。",

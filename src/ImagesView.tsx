@@ -40,6 +40,7 @@ function ImagesView({
   onGoFiles?: () => void;
 }) {
   const { sitesHost, flags } = useFeatures();
+  const [publicHost, setPublicHost] = useState<string | null>(null);
   const [images, setImages] = useState<HostedImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [dropActive, setDropActive] = useState(false);
@@ -49,6 +50,7 @@ function ImagesView({
   const load = useCallback(async () => {
     try {
       const data = await listImages();
+      setPublicHost(data.publicHost ?? null);
       setImages(data.images);
     } catch (error) {
       onNotify(errorMessage(error), "error");
@@ -170,10 +172,12 @@ function ImagesView({
           />
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {strings.imagesHint}
+          {publicHost
+            ? translate("imagesPublicHint", { host: publicHost })
+            : strings.imagesHint}
         </Typography>
       </Box>
-      {!sitesHost && (
+      {!sitesHost && !publicHost && (
         <Alert severity="warning" sx={{ mx: 2, mb: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {strings.imagesHostMissing}

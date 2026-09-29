@@ -1,4 +1,4 @@
-import { parseSitesPath } from "./_sites";
+import { normalizeHostname, parseSitesPath } from "./_sites";
 
 export const IMAGE_PREFIX = "_$flaredrive$/img/";
 
@@ -135,6 +135,25 @@ export function resolveSitesHostRoute(
 export function publicImageUrl(sitesHost: string | null | undefined, id: string): string | null {
   if (!sitesHost) return null;
   return `https://${sitesHost}/i/${id}`;
+}
+
+/** Hostname for the standalone image host (`personal-drive-img.pages.dev`). */
+export function normalizeImagePublicHost(raw: string | undefined | null): string | null {
+  const host = normalizeHostname(raw);
+  if (!host || !host.includes(".")) return null;
+  return host;
+}
+
+/** Single path segment stored in the image bucket and used as the public URL path. */
+export function imagePublicKey(filename: string): string | null {
+  const base = filename.replace(/\\/g, "/").split("/").pop() || "";
+  const cleaned = base.replace(/[\u0000-\u001f]/g, "").trim();
+  if (!cleaned || cleaned === "." || cleaned === "..") return null;
+  return cleaned.slice(0, 200);
+}
+
+export function directImageUrl(host: string, key: string): string {
+  return `https://${host}/${encodeURIComponent(key)}`;
 }
 
 export function imageMarkdown(url: string | null): string {

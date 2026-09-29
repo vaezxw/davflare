@@ -209,6 +209,47 @@ describe("images", () => {
     expect(await ok.json()).toEqual({ id: "d".repeat(32), deleted: true });
     expect(bucket.has(imageObjectKey("d".repeat(32)))).toBe(false);
   });
+
+  test("IMAGE_PUBLIC_HOST 写入 IMAGES 桶并用文件名作为公开地址", async () => {
+    const drive = new InMemoryBucket();
+    const images = new InMemoryBucket();
+    const env = makeEnv(drive, {
+      IMAGES: images.asBucket(),
+      IMAGE_PUBLIC_HOST: "personal-drive-img.pages.dev",
+    });
+    const created = await imagesOnPost(
+      makeContext(
+        request("/api/images", "POST", {
+          body: PNG_BYTES,
+          headers: {
+            "Content-Type": "image/png",
+            "X-File-Name": encodeURIComponent("屏幕截图.png"),
+          },
+        }),
+        env
+      )
+    );
+    expect(created.status).toBe(201);
+    const body = (await created.json()) as { id: string; url: string };
+    const publicUrl = `https://personal-drive-img.pages.dev/${encodeURIComponent("屏幕截图.png")}`;
+    expect(body.id).toBe("屏幕截图.png");
+    expect(body.url).toBe(publicUrl);
+    expect(images.has("屏幕截图.png")).toBe(true);
+
+    const listed = await imagesOnGet(makeContext(request("/api/images", "GET"), env));
+    const listBody = (await listed.json()) as {
+      publicHost: string;
+      images: Array<{ url: string }>;
+    };
+    expect(listBody.publicHost).toBe("personal-drive-img.pages.dev");
+    expect(listBody.images[0].url).toBe(publicUrl);
+
+    const removed = await imagesOnDelete(
+      makeContext(request(`/api/images?id=${encodeURIComponent("屏幕截图.png")}`, "DELETE"), env)
+    );
+    expect(removed.status).toBe(200);
+    expect(images.has("屏幕截图.png")).toBe(false);
+  });
 });
 
 describe("sites GET", () => {

@@ -5,6 +5,8 @@ compatibility_date = "2024-06-20"
 [vars]
 WEBDAV_USERNAME = "drive"
 WEBDAV_PUBLIC_READ = "0"
+# Public image host (no custom domain). Files uploaded from the drive UI land in IMAGES.
+IMAGE_PUBLIC_HOST = "personal-drive-img.pages.dev"
 # SITES_HOST is set as a Cloudflare Pages environment variable in the dashboard
 # (production/preview), NOT hard-coded here, so a deploy cannot override it.
 # Empty/missing SITES_HOST = static sites stay off.
@@ -12,3 +14,7 @@ WEBDAV_PUBLIC_READ = "0"
 [[r2_buckets]]
 binding = "BUCKET"
 bucket_name = "personal-drive"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "personal-drive-images"

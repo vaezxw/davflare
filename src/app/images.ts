@@ -13,6 +13,7 @@ export interface HostedImage {
 
 export interface ImagesResponse {
   sitesHost: string | null;
+  publicHost: string | null;
   images: HostedImage[];
 }
 
@@ -25,7 +26,7 @@ export async function listImages(): Promise<ImagesResponse> {
 export async function uploadImage(file: File): Promise<HostedImage> {
   const response = await authFetch("/api/images", {
     method: "POST",
-    headers: { "X-File-Name": file.name },
+    headers: { "X-File-Name": encodeURIComponent(file.name) },
     body: file,
   });
   if (!response.ok) {
