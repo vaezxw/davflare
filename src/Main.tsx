@@ -25,6 +25,8 @@ import PathBar, { SearchScope } from "./PathBar";
 import RenameDialog from "./RenameDialog";
 import PublishSiteDialog from "./PublishSiteDialog";
 import ShareDialog from "./ShareDialog";
+import AccountsView from "./AccountsView";
+import AccountDetailView from "./AccountDetailView";
 import SharesView from "./SharesView";
 import SettingsView from "./SettingsView";
 import SetupView from "./SetupView";
@@ -158,15 +160,18 @@ function Main({
 
   const cwd = route.kind === "folder" ? route.path : lastFolderPath.current;
   const section: ExplorerSection =
-    route.kind === "shares" ||
-    route.kind === "trash" ||
-    route.kind === "sites" ||
-    route.kind === "images" ||
-    route.kind === "settings" ||
-    route.kind === "setup" ||
-    route.kind === "mcp"
-      ? route.kind
-      : "folder";
+    route.kind === "account"
+      ? "accounts"
+      : route.kind === "shares" ||
+          route.kind === "trash" ||
+          route.kind === "sites" ||
+          route.kind === "images" ||
+          route.kind === "settings" ||
+          route.kind === "setup" ||
+          route.kind === "mcp" ||
+          route.kind === "accounts"
+        ? route.kind
+        : "folder";
 
   const {
     files,
@@ -672,6 +677,16 @@ function Main({
             onOpenSetup={() => navigate({ kind: "setup" })}
             onOpenMcp={() => navigate({ kind: "mcp" })}
           />
+        </Box>
+      )}
+      {route.kind === "accounts" && (
+        <Box onScroll={handleContentScroll} sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", pb: { xs: 8, sm: 0 } }}>
+          <AccountsView />
+        </Box>
+      )}
+      {route.kind === "account" && (
+        <Box onScroll={handleContentScroll} sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", pb: { xs: 8, sm: 0 } }}>
+          <AccountDetailView username={route.username} />
         </Box>
       )}
       {route.kind === "setup" && (

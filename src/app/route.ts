@@ -8,7 +8,9 @@ export type Route =
   | { kind: "images" }
   | { kind: "settings" }
   | { kind: "setup" }
-  | { kind: "mcp" };
+  | { kind: "mcp" }
+  | { kind: "accounts" }
+  | { kind: "account"; username: string };
 
 function encodeRoute(route: Route): string {
   switch (route.kind) {
@@ -28,6 +30,10 @@ function encodeRoute(route: Route): string {
       return "#/setup";
     case "mcp":
       return "#/mcp";
+    case "accounts":
+      return "#/accounts";
+    case "account":
+      return `#/accounts/${encodeURIComponent(route.username)}`;
   }
 }
 
@@ -40,6 +46,17 @@ function decodeRoute(hash: string): Route {
   if (raw === "settings") return { kind: "settings" };
   if (raw === "setup") return { kind: "setup" };
   if (raw === "mcp") return { kind: "mcp" };
+  if (raw === "accounts") return { kind: "accounts" };
+  if (raw.startsWith("accounts/")) {
+    const usernameRaw = raw.slice("accounts/".length).split("/")[0] ?? "";
+    let username = usernameRaw;
+    try {
+      username = decodeURIComponent(usernameRaw);
+    } catch {
+      username = usernameRaw;
+    }
+    if (username) return { kind: "account", username };
+  }
 
   const path = raw
     .split("/")

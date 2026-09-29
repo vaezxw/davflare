@@ -206,6 +206,10 @@ function AppContent({
           setSearch("");
           navigate({ kind: "settings" });
         }}
+        onOpenAccounts={() => {
+          setSearch("");
+          navigate({ kind: "accounts" });
+        }}
         themeMode={themeMode}
         onThemeModeChange={onThemeModeChange}
         elevated={contentScrolled}

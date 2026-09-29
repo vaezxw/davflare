@@ -103,4 +103,51 @@ describe("useHashRoute", () => {
     await flushEvents();
     expect(result.current[0]).toEqual({ kind: "folder", path: "manual/" });
   });
+
+  test("#/accounts 解析为账号列表", () => {
+    setHash("#/accounts");
+    const { result } = renderHook(() => useHashRoute());
+    expect(result.current[0]).toEqual({ kind: "accounts" });
+  });
+
+  test("#/accounts/<user> 解析为账号详情", () => {
+    setHash("#/accounts/alice");
+    const alice = renderHook(() => useHashRoute());
+    expect(alice.result.current[0]).toEqual({
+      kind: "account",
+      username: "alice",
+    });
+    alice.unmount();
+
+    setHash("#/accounts/%E7%94%A8%E6%88%B7");
+    const encoded = renderHook(() => useHashRoute());
+    expect(encoded.result.current[0]).toEqual({
+      kind: "account",
+      username: "用户",
+    });
+  });
+
+  test("navigate 到 accounts / account", async () => {
+    const { result } = renderHook(() => useHashRoute());
+    act(() => {
+      result.current[1]({ kind: "accounts" });
+    });
+    expect(window.location.hash).toBe("#/accounts");
+    await flushEvents();
+    expect(result.current[0]).toEqual({ kind: "accounts" });
+
+    act(() => {
+      result.current[1]({ kind: "account", username: "bob" });
+    });
+    expect(window.location.hash).toBe("#/accounts/bob");
+    await flushEvents();
+    expect(result.current[0]).toEqual({ kind: "account", username: "bob" });
+
+    act(() => {
+      result.current[1]({ kind: "account", username: "用户" });
+    });
+    expect(window.location.hash).toBe("#/accounts/%E7%94%A8%E6%88%B7");
+    await flushEvents();
+    expect(result.current[0]).toEqual({ kind: "account", username: "用户" });
+  });
 });

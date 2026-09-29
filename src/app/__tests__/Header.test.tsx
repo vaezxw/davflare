@@ -21,6 +21,7 @@ function renderHeader(props: Partial<React.ComponentProps<typeof Header>> = {}) 
     onOpenTransfers: vi.fn(),
     onOpenApi: vi.fn(),
     onOpenSettings: vi.fn(),
+    onOpenAccounts: vi.fn(),
     themeMode: "system" as const,
     onThemeModeChange: vi.fn(),
   };
@@ -100,6 +101,14 @@ describe("Header", () => {
     fireEvent.click(screen.getByLabelText(strings.account));
     fireEvent.click(screen.getByText(strings.settings));
     expect(onOpenSettings).toHaveBeenCalled();
+  });
+
+  test("账号菜单：打开账号管理", () => {
+    const onOpenAccounts = vi.fn();
+    renderHeader({ username: "alice", onOpenAccounts });
+    fireEvent.click(screen.getByLabelText(strings.account));
+    fireEvent.click(screen.getByText(strings.openAccounts));
+    expect(onOpenAccounts).toHaveBeenCalled();
   });
 
   test("elevated header applies blurred background style", () => {

@@ -31,6 +31,7 @@ import { getLang, Lang, setLang, APP_NAME, strings } from "./app/strings";
 import { ThemeModePreference } from "./app/prefs";
 import { Z_INDEX, warmShadow } from "./app/theme";
 import { useTransferQueue } from "./app/transferQueue";
+import { UserAvatar } from "./UserAvatar";
 
 function Header({
   search,
@@ -41,6 +42,7 @@ function Header({
   onOpenTransfers,
   onOpenApi,
   onOpenSettings,
+  onOpenAccounts,
   themeMode,
   onThemeModeChange,
   elevated = false,
@@ -53,6 +55,7 @@ function Header({
   onOpenTransfers: () => void;
   onOpenApi: () => void;
   onOpenSettings: () => void;
+  onOpenAccounts: () => void;
   themeMode: ThemeModePreference;
   onThemeModeChange: (mode: ThemeModePreference) => void;
   elevated?: boolean;
@@ -259,7 +262,16 @@ function Header({
           aria-label={strings.account}
           onClick={(event) => setAccountAnchor(event.currentTarget)}
         >
-          <AccountCircleIcon />
+          {username ? (
+            <UserAvatar
+              username={username}
+              avatar={null}
+              avatarUrl={null}
+              size={28}
+            />
+          ) : (
+            <AccountCircleIcon />
+          )}
         </IconButton>
       </Tooltip>
       <Menu
@@ -282,6 +294,17 @@ function Header({
           >
             <ApiIcon sx={{ marginRight: 1 }} />
             {strings.apiKeys}
+          </MenuItem>
+        )}
+        {username && (
+          <MenuItem
+            onClick={() => {
+              setAccountAnchor(null);
+              onOpenAccounts();
+            }}
+          >
+            <AccountCircleIcon sx={{ marginRight: 1 }} />
+            {strings.openAccounts}
           </MenuItem>
         )}
         {username && (
