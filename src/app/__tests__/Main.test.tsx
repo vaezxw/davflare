@@ -224,6 +224,18 @@ describe("Main", () => {
     await waitFor(() => expect(screen.getByText("trash-stub")).toBeInTheDocument());
   });
 
+  test("opening settings with leftover search clears it instead of bouncing home", async () => {
+    const { props } = renderMain(
+      { kind: "settings" },
+      { search: "drive" }
+    );
+    await waitFor(() => expect(screen.getByText("settings-stub")).toBeInTheDocument());
+    expect(props.onSearchChange).toHaveBeenCalledWith("");
+    expect(props.navigate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "folder" })
+    );
+  });
+
   test("disabled sites/images flags bounce back to folder", async () => {
     mockUseFeatures.mockReturnValue({
       flags: { ...DEFAULT_FEATURE_FLAGS, sites: false, imageHost: false },

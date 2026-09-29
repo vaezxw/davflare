@@ -221,8 +221,26 @@ function Main({
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  // Residual search must not kick the user out of settings/shares/etc.
+  // Clear leftover queries when entering a non-folder section; bounce back to
+  // the folder view only when the user types a new query while already there.
   useEffect(() => {
-    if (search.trim() && route.kind !== "folder") {
+    if (route.kind !== "folder" && search) {
+      onSearchChange("");
+    }
+    // Intentionally only react to section changes, not to search edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.kind]);
+
+  const previousSearchRef = useRef(search);
+  useEffect(() => {
+    const previous = previousSearchRef.current;
+    previousSearchRef.current = search;
+    if (
+      search.trim() &&
+      route.kind !== "folder" &&
+      search !== previous
+    ) {
       navigate({ kind: "folder", path: lastFolderPath.current });
     }
   }, [navigate, route.kind, search]);

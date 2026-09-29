@@ -202,7 +202,10 @@ function AppContent({
         onLogout={logout}
         onOpenTransfers={() => setShowTransfers(true)}
         onOpenApi={() => flags.apiKey && setShowApiKeys(true)}
-        onOpenSettings={() => navigate({ kind: "settings" })}
+        onOpenSettings={() => {
+          setSearch("");
+          navigate({ kind: "settings" });
+        }}
         themeMode={themeMode}
         onThemeModeChange={onThemeModeChange}
         elevated={contentScrolled}
