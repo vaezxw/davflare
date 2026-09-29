@@ -1,9 +1,8 @@
-import { parseBasicAuthHeader, timingSafeEqual } from "./api/_apikey";
+import { parseBasicAuthHeader, timingSafeEqual } from "./_basicAuth";
 
 export const USERS_PREFIX = "_$flaredrive$/users/";
-// Keep this low enough for Cloudflare Workers Free (≈10ms CPU/request).
-// Higher counts (e.g. 210k) exceed the limit and return Error 1101.
-export const PASSWORD_ITERATIONS = 10_000;
+// Workers Free ≈10ms CPU/request — keep PBKDF2 well under that.
+export const PASSWORD_ITERATIONS = 5_000;
 
 export type UserRole = "admin" | "user";
 
@@ -50,11 +49,14 @@ async function derivePassword(
     false,
     ["deriveBits"]
   );
+  // Copy salt into a fresh ArrayBuffer — some Workers runtimes reject
+  // SharedArrayBuffer views / detached buffers from getRandomValues.
+  const saltCopy = new Uint8Array(salt);
   const bits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       hash: "SHA-256",
-      salt,
+      salt: saltCopy,
       iterations,
     },
     key,

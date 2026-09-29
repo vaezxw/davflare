@@ -42,12 +42,17 @@ export const onRequestPost: PagesFunction<AccountEnv> = async (context) => {
     : principal.username === env.WEBDAV_USERNAME && currentPassword === env.WEBDAV_PASSWORD;
   if (!currentMatches) return textResponse("Current password is wrong", 400);
 
-  await putStoredUser(
-    env.BUCKET,
-    await createStoredUser(principal.username, newPassword, {
-      role: stored?.role ?? principal.role,
-      disabled: stored?.disabled ?? false,
-    })
-  );
+  try {
+    await putStoredUser(
+      env.BUCKET,
+      await createStoredUser(principal.username, newPassword, {
+        role: stored?.role ?? principal.role,
+        disabled: stored?.disabled ?? false,
+      })
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to change password";
+    return textResponse(message, 500);
+  }
   return jsonResponse({ username: principal.username });
 };
