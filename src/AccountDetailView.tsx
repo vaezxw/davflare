@@ -89,17 +89,23 @@ export async function cropAvatarSquare(file: File): Promise<Blob> {
   }
 }
 
-/** Map tree child key to drive folder path for navigate. */
+/** Map tree child key to drive folder path for navigate.
+ * Admin homes use bucket root (empty homePrefix); user homes use homes/<U>/.
+ */
 export function drivePathForChild(
   viewingUsername: string,
   selfUsername: string,
-  child: Pick<TreeChild, "key" | "isDir">
+  child: Pick<TreeChild, "key" | "isDir">,
+  role?: "admin" | "user"
 ): string {
-  const isSelf = viewingUsername === selfUsername;
+  const useLogicalKey =
+    viewingUsername === selfUsername || role === "admin";
   if (!child.key) {
-    return isSelf ? "" : `homes/${viewingUsername}/`;
+    return useLogicalKey ? "" : `homes/${viewingUsername}/`;
   }
-  let path = isSelf ? child.key : `homes/${viewingUsername}/${child.key}`;
+  let path = useLogicalKey
+    ? child.key
+    : `homes/${viewingUsername}/${child.key}`;
   if (child.isDir && !path.endsWith("/")) path += "/";
   return path;
 }
@@ -241,7 +247,7 @@ function AccountDetailView({
   const openInDrive = (child: TreeChild) => {
     navigate({
       kind: "folder",
-      path: drivePathForChild(username, selfUsername, child),
+      path: drivePathForChild(username, selfUsername, child, profile?.role),
     });
   };
 

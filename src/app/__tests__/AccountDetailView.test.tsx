@@ -124,7 +124,7 @@ describe("AccountDetailView", () => {
     expect(navigate).toHaveBeenCalledWith({ kind: "folder", path: "docs/" });
   });
 
-  test("open in drive prefixes homes/U for admin viewing other", async () => {
+  test("open in drive prefixes homes/U for admin viewing user", async () => {
     const navigate = vi.fn();
     stubFeatures("drive", true);
     render(
@@ -136,6 +136,28 @@ describe("AccountDetailView", () => {
     expect(navigate).toHaveBeenCalledWith({
       kind: "folder",
       path: "homes/alice/docs/",
+    });
+  });
+
+  test("open in drive uses logical path for admin viewing admin", async () => {
+    const navigate = vi.fn();
+    stubFeatures("drive", true);
+    mockList.mockResolvedValue([
+      {
+        ...profile,
+        username: "bob",
+        role: "admin" as const,
+      },
+    ]);
+    render(
+      <AccountDetailView username="bob" navigate={navigate} onNotify={vi.fn()} />
+    );
+    await screen.findByText("docs");
+    const row = screen.getByText("docs").closest("tr")!;
+    fireEvent.click(within(row).getByRole("button", { name: strings.openInDrive }));
+    expect(navigate).toHaveBeenCalledWith({
+      kind: "folder",
+      path: "docs/",
     });
   });
 
