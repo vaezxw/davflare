@@ -36,7 +36,7 @@ export const onRequestGet: PagesFunction<UsersEnv> = async (context) => {
   const users: PublicUser[] = stored.map(toPublicUser);
   const bootstrap = context.env.WEBDAV_USERNAME;
   if (isValidUsername(bootstrap) && !users.some((user) => user.username === bootstrap)) {
-    users.unshift({ username: bootstrap, role: "admin", disabled: false });
+    users.unshift({ username: bootstrap, role: "admin", disabled: false, avatar: null });
   }
   users.sort((a, b) => a.username.localeCompare(b.username));
   return jsonResponse({ users });
@@ -92,6 +92,7 @@ export const onRequestPatch: PagesFunction<UsersEnv> = async (context) => {
     const next = await createStoredUser(stored.username, password, {
       role: stored.role,
       disabled: stored.disabled,
+      avatar: stored.avatar,
     });
     await putStoredUser(context.env.BUCKET, next);
     return jsonResponse(toPublicUser(next));

@@ -151,8 +151,8 @@ describe("/api/users", () => {
       users: Array<Record<string, unknown>>;
     };
     expect(body.users).toEqual([
-      { username: "admin", role: "admin", disabled: false },
-      { username: "alice", role: "user", disabled: false },
+      { username: "admin", role: "admin", disabled: false, avatar: null },
+      { username: "alice", role: "user", disabled: false, avatar: null },
     ]);
     expect(JSON.stringify(body)).not.toMatch(/digest|salt|password/i);
   });
@@ -176,6 +176,7 @@ describe("/api/users", () => {
       username: "alice",
       role: "user",
       disabled: false,
+      avatar: null,
     });
     expect((await create()).status).toBe(409);
   });

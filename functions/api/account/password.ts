@@ -48,6 +48,7 @@ export const onRequestPost: PagesFunction<AccountEnv> = async (context) => {
       await createStoredUser(principal.username, newPassword, {
         role: stored?.role ?? principal.role,
         disabled: stored?.disabled ?? false,
+        avatar: stored?.avatar,
       })
     );
   } catch (error) {

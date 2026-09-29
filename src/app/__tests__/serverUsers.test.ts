@@ -4,6 +4,7 @@ import {
   createStoredUser,
   isValidUsername,
   putStoredUser,
+  toPublicUser,
   verifyStoredUserPassword,
 } from "../../../functions/_users";
 import {
@@ -139,6 +140,21 @@ describe("server user store", () => {
         "bootstrap-secret"
       )
     ).resolves.toBe(true);
+  });
+
+  test("preserves avatar when rewriting password hash", async () => {
+    const first = await createStoredUser("alice", "old-password", {
+      role: "user",
+      avatar: { kind: "preset", value: "preset-03" },
+    });
+    expect(toPublicUser(first).avatar).toEqual({ kind: "preset", value: "preset-03" });
+    const next = await createStoredUser("alice", "new-password", {
+      role: first.role,
+      disabled: first.disabled,
+      avatar: first.avatar,
+    });
+    expect(next.avatar).toEqual({ kind: "preset", value: "preset-03" });
+    expect(JSON.stringify(next)).not.toContain("new-password");
   });
 
   test("rejects invalid usernames", async () => {

@@ -6,11 +6,25 @@ export const PASSWORD_ITERATIONS = 5_000;
 
 export type UserRole = "admin" | "user";
 
+export type UserAvatar = { kind: "preset" | "upload"; value: string };
+
+export function isUserAvatar(value: unknown): value is UserAvatar {
+  if (!value || typeof value !== "object") return false;
+  const avatar = value as Partial<UserAvatar>;
+  return (
+    (avatar.kind === "preset" || avatar.kind === "upload") &&
+    typeof avatar.value === "string" &&
+    avatar.value.length > 0 &&
+    avatar.value.length <= 128
+  );
+}
+
 export interface StoredUser {
   version: 1;
   username: string;
   role: UserRole;
   disabled: boolean;
+  avatar?: UserAvatar;
   password: {
     algorithm: "PBKDF2";
     hash: "SHA-256";
@@ -71,25 +85,33 @@ export interface PublicUser {
   username: string;
   role: UserRole;
   disabled: boolean;
+  avatar: UserAvatar | null;
 }
 
 export function isValidUsername(username: string): boolean {
   return /^[a-z0-9-]+$/.test(username);
 }
 
-export function toPublicUser(user: Pick<StoredUser, "username" | "role" | "disabled">): PublicUser {
-  return { username: user.username, role: user.role, disabled: user.disabled };
+export function toPublicUser(
+  user: Pick<StoredUser, "username" | "role" | "disabled" | "avatar">
+): PublicUser {
+  return {
+    username: user.username,
+    role: user.role,
+    disabled: user.disabled,
+    avatar: user.avatar ?? null,
+  };
 }
 
 export async function createStoredUser(
   username: string,
   password: string,
-  options: { role: UserRole; disabled?: boolean }
+  options: { role: UserRole; disabled?: boolean; avatar?: UserAvatar }
 ): Promise<StoredUser> {
   if (!isValidUsername(username)) throw new Error("Invalid username");
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const digest = await derivePassword(password, salt, PASSWORD_ITERATIONS);
-  return {
+  const user: StoredUser = {
     version: 1,
     username,
     role: options.role,
@@ -102,6 +124,10 @@ export async function createStoredUser(
       digest: bytesToBase64(digest),
     },
   };
+  if (options.avatar !== undefined) {
+    user.avatar = options.avatar;
+  }
+  return user;
 }
 
 export async function putStoredUser(
@@ -131,7 +157,8 @@ function isStoredUser(value: unknown, username: string): value is StoredUser {
     typeof password.iterations === "number" &&
     password.iterations > 0 &&
     typeof password.salt === "string" &&
-    typeof password.digest === "string"
+    typeof password.digest === "string" &&
+    (user.avatar === undefined || isUserAvatar(user.avatar))
   );
 }
 
