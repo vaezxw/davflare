@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   FormControlLabel,
   Stack,
@@ -12,6 +13,7 @@ import {
 } from "@mui/material";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import HubIcon from "@mui/icons-material/Hub";
+import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
 
 import {
   AccountUser,
@@ -38,6 +40,15 @@ const SWITCHES: Array<{
   { key: "imageHost", label: "flagImageHost", hint: "flagImageHostHint" },
 ];
 
+const cardSx = {
+  px: 1.5,
+  py: 1.25,
+  borderRadius: 2,
+  border: "1px solid",
+  borderColor: "divider",
+  backgroundColor: "background.paper",
+} as const;
+
 function SettingsView({
   onNotify,
   onOpenSetup,
@@ -56,6 +67,7 @@ function SettingsView({
   const [users, setUsers] = useState<AccountUser[]>([]);
   const [newUsername, setNewUsername] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
   const [resetting, setResetting] = useState<string | null>(null);
   const [resetValue, setResetValue] = useState("");
 
@@ -84,6 +96,7 @@ function SettingsView({
   };
 
   const createUser = async () => {
+    setCreatingUser(true);
     try {
       await createAccountUser(newUsername, newUserPassword);
       setNewUsername("");
@@ -92,6 +105,8 @@ function SettingsView({
       onNotify(strings.accountCreated, "success");
     } catch (error) {
       onNotify(errorMessage(error) || strings.createUserFailed, "error");
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -183,57 +198,151 @@ function SettingsView({
       {config?.admin && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1">{strings.accountsTitle}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{strings.accountsHint}</Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }} alignItems={{ sm: "flex-start" }}>
-            <TextField
-              label={strings.accountUsername}
-              value={newUsername}
-              onChange={(event) => setNewUsername(event.target.value)}
-              helperText={strings.accountUsernameHint}
-            />
-            <TextField
-              label={strings.newPassword}
-              type="password"
-              value={newUserPassword}
-              onChange={(event) => setNewUserPassword(event.target.value)}
-              helperText={strings.passwordMinLengthHint}
-            />
-            <Button variant="outlined" onClick={() => void createUser()} sx={{ mt: { sm: 1 } }}>{strings.createAccount}</Button>
-          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            {strings.accountsHint}
+          </Typography>
+
+          <Box sx={{ ...cardSx, mb: 1.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
+              <PersonAddAlt1Icon fontSize="small" color="action" />
+              <Typography sx={{ fontWeight: 700 }}>{strings.createAccountSection}</Typography>
+            </Stack>
+            <Stack spacing={1.25}>
+              <TextField
+                size="small"
+                label={strings.accountUsername}
+                value={newUsername}
+                onChange={(event) => setNewUsername(event.target.value)}
+                helperText={strings.accountUsernameHint}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label={strings.newPassword}
+                type="password"
+                value={newUserPassword}
+                onChange={(event) => setNewUserPassword(event.target.value)}
+                helperText={strings.passwordMinLengthHint}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                disabled={creatingUser || !newUsername.trim() || !newUserPassword}
+                onClick={() => void createUser()}
+                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+              >
+                {strings.createAccount}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+            {strings.accountListSection}
+          </Typography>
           <Stack spacing={1}>
-            {users.map((user) => (
-              <Stack key={user.username} direction="row" spacing={1} alignItems="center">
-                <Typography sx={{ minWidth: 120 }}>{user.username}{user.disabled ? ` (${strings.accountDisabled})` : ""}</Typography>
-                {user.role !== "admin" && (
-                  <>
-                    <Button size="small" onClick={() => { setResetting(user.username); setResetValue(""); }}>{strings.resetPassword}</Button>
-                    <Button size="small" onClick={() => void toggleDisabled(user)}>{user.disabled ? strings.enableAccount : strings.disableAccount}</Button>
-                  </>
-                )}
-                {resetting === user.username && (
-                  <>
-                    <TextField size="small" type="password" label={strings.newPassword} value={resetValue} onChange={(event) => setResetValue(event.target.value)} />
-                    <Button size="small" onClick={() => void resetPassword(user.username)}>{strings.savePassword}</Button>
-                  </>
-                )}
-              </Stack>
-            ))}
+            {users.length === 0 ? (
+              <Box sx={cardSx}>
+                <Typography variant="body2" color="text.secondary">
+                  {strings.noAccountsYet}
+                </Typography>
+              </Box>
+            ) : (
+              users.map((user) => (
+                <Box key={user.username} sx={cardSx}>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    alignItems={{ xs: "stretch", sm: "center" }}
+                    justifyContent="space-between"
+                  >
+                    <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 700, wordBreak: "break-all" }}>
+                        {user.username}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                        <Chip
+                          size="small"
+                          label={user.role === "admin" ? strings.accountRoleAdmin : strings.accountRoleUser}
+                          color={user.role === "admin" ? "primary" : "default"}
+                          variant={user.role === "admin" ? "filled" : "outlined"}
+                        />
+                        {user.disabled && (
+                          <Chip size="small" label={strings.accountDisabled} color="warning" />
+                        )}
+                      </Stack>
+                    </Stack>
+                    {user.role !== "admin" && (
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setResetting((current) =>
+                              current === user.username ? null : user.username
+                            );
+                            setResetValue("");
+                          }}
+                        >
+                          {strings.resetPassword}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color={user.disabled ? "success" : "warning"}
+                          onClick={() => void toggleDisabled(user)}
+                        >
+                          {user.disabled ? strings.enableAccount : strings.disableAccount}
+                        </Button>
+                      </Stack>
+                    )}
+                  </Stack>
+                  {resetting === user.username && (
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1}
+                      alignItems={{ sm: "flex-start" }}
+                      sx={{ mt: 1.25, pt: 1.25, borderTop: "1px solid", borderColor: "divider" }}
+                    >
+                      <TextField
+                        size="small"
+                        type="password"
+                        label={strings.newPassword}
+                        value={resetValue}
+                        onChange={(event) => setResetValue(event.target.value)}
+                        helperText={strings.passwordMinLengthHint}
+                        fullWidth
+                        sx={{ flex: 1 }}
+                      />
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={!resetValue}
+                        onClick={() => void resetPassword(user.username)}
+                        sx={{ mt: { sm: 0.5 } }}
+                      >
+                        {strings.savePassword}
+                      </Button>
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setResetting(null);
+                          setResetValue("");
+                        }}
+                        sx={{ mt: { sm: 0.5 } }}
+                      >
+                        {strings.cancelResetPassword}
+                      </Button>
+                    </Stack>
+                  )}
+                </Box>
+              ))
+            )}
           </Stack>
         </Box>
       )}
       <Stack spacing={1.5}>
         {SWITCHES.map((item) => (
-          <Box
-            key={item.key}
-            sx={{
-              px: 1.5,
-              py: 1,
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-              backgroundColor: "background.paper",
-            }}
-          >
+          <Box key={item.key} sx={cardSx}>
             <FormControlLabel
               sx={{ alignItems: "flex-start", ml: 0, mr: 0, width: "100%" }}
               control={

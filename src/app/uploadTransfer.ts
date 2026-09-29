@@ -467,11 +467,15 @@ export async function processTransferTask({
 
       const thumbnailUploadUrl = `/webdav/_$flaredrive$/thumbnails/${digestHex}.png`;
       try {
-        await authFetch(thumbnailUploadUrl, {
+        const thumbResponse = await authFetch(thumbnailUploadUrl, {
           method: "PUT",
           body: thumbnailBlob,
         });
-        thumbnailDigest = digestHex;
+        if (thumbResponse.ok) {
+          thumbnailDigest = digestHex;
+        } else {
+          console.log(`Upload ${digestHex}.png failed`);
+        }
       } catch (error) {
         console.log(`Upload ${digestHex}.png failed`);
       }

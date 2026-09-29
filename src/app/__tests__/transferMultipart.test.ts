@@ -351,6 +351,36 @@ describe("processTransferTask 缩略图副作用与分块路径", () => {
 
     mockAuthFetch
       .mockResolvedValueOnce(jsonResponse({}, true, 201)) // MKCOL
+      .mockResolvedValueOnce(new Response("fail", { status: 409 })) // 缩略图 PUT 非 2xx
+      .mockResolvedValueOnce(okCreate())
+      .mockResolvedValueOnce(okComplete());
+
+    const res = await processTransferTask({
+      task: uploadTask(bigFile(SIZE_LIMIT * 2, "image/png")),
+    });
+    expect(res.ok).toBe(true);
+    const createInit = mockAuthFetch.mock.calls[2][1] as RequestInit;
+    expect((createInit.headers as Record<string, string>)["fd-thumbnail"]).toBeUndefined();
+  });
+
+  test("缩略图 PUT 抛错不阻塞上传且不带 fd-thumbnail", async () => {
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_v: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    (global as any).Image = MockImage;
+    HTMLCanvasElement.prototype.getContext = vi.fn(
+      () => ({ drawImage: vi.fn() }) as any
+    ) as any;
+    HTMLCanvasElement.prototype.toBlob = function (cb: BlobCallback) {
+      cb(new Blob(["png"], { type: "image/png" }));
+    } as any;
+
+    mockAuthFetch
+      .mockResolvedValueOnce(jsonResponse({}, true, 201)) // MKCOL
       .mockRejectedValueOnce(new Error("thumb put fail")) // 缩略图 PUT 失败
       .mockResolvedValueOnce(okCreate())
       .mockResolvedValueOnce(okComplete());

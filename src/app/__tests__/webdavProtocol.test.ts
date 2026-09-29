@@ -1562,4 +1562,39 @@ describe("webdav POST multipart (uploads/complete)", () => {
     );
     expect(await admin.text()).toContain("homes");
   });
+
+  test("ordinary user thumbnails stay on the shared internal prefix", async () => {
+    const bucket = new InMemoryBucket();
+    await putStoredUser(
+      bucket.asBucket(),
+      await createStoredUser("bob", "bob-password", { role: "user" })
+    );
+    const bob = basicAuthHeader("bob", "bob-password");
+    const digest = "a".repeat(40);
+
+    const thumb = await call(
+      req(
+        `/webdav/_$flaredrive$/thumbnails/${digest}.png`,
+        "PUT",
+        { Authorization: bob },
+        "png"
+      ),
+      makeEnv(bucket)
+    );
+    expect(thumb.status).toBe(201);
+    expect(bucket.has(`_$flaredrive$/thumbnails/${digest}.png`)).toBe(true);
+    expect(bucket.has(`homes/bob/_$flaredrive$/thumbnails/${digest}.png`)).toBe(false);
+
+    const file = await call(
+      req(
+        "/webdav/pic.jpg",
+        "PUT",
+        { Authorization: bob, "fd-thumbnail": digest },
+        "jpeg"
+      ),
+      makeEnv(bucket)
+    );
+    expect(file.status).toBe(201);
+    expect(bucket.has("homes/bob/pic.jpg")).toBe(true);
+  });
 });

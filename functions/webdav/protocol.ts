@@ -1385,7 +1385,7 @@ async function handleRequest(context: PagesContext): Promise<Response> {
       });
     }
     homePrefix = principal.homePrefix;
-    if (homePrefix) {
+    if (homePrefix && !path.startsWith(INTERNAL_PREFIX)) {
       const scoped = scopeStoragePath(homePrefix, path);
       if (scoped === null) return new Response("Forbidden", { status: 403 });
       scopedPath = scoped;
