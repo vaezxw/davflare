@@ -108,5 +108,5 @@
     "skipLibCheck": true /* Skip type checking all .d.ts files. */,
     "types": ["@cloudflare/workers-types", "vite/client", "vitest/globals", "chrome"]
   },
-  "exclude": ["cli", "node_modules", "build", ".wrangler"]
+  "exclude": ["cli", "node_modules", "build", ".wrangler", "image-gateway"]
 }

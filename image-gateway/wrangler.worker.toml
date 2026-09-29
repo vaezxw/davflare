@@ -1,0 +1,16 @@
+name = "personal-drive-images"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# workers.dev is often unreachable from some networks. The public hostname
+# that clients should use is the Pages project personal-drive-img.
+# This Worker remains the same implementation for networks that can reach workers.dev.
+[vars]
+ALLOWED_ORIGINS = "davflare-8fq.pages.dev,personal-drive-img.pages.dev"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "personal-drive-images"
+
+[observability]
+enabled = true
