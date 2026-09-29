@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { alpha } from "@mui/material/styles";
 import { translate } from "./app/strings";
 import {
@@ -26,6 +26,10 @@ import {
   VpnKey as ApiIcon,
 } from "@mui/icons-material";
 
+import {
+  listAccountProfiles,
+  type UserAvatar as AvatarValue,
+} from "./app/accountProfiles";
 import { useFeatures } from "./app/features";
 import { getLang, Lang, setLang, APP_NAME, strings } from "./app/strings";
 import { ThemeModePreference } from "./app/prefs";
@@ -63,8 +67,38 @@ function Header({
   const [accountAnchor, setAccountAnchor] = useState<null | HTMLElement>(null);
   const [themeAnchor, setThemeAnchor] = useState<null | HTMLElement>(null);
   const [langAnchor, setLangAnchor] = useState<null | HTMLElement>(null);
+  const [selfAvatar, setSelfAvatar] = useState<{
+    avatar: AvatarValue | null;
+    avatarUrl: string | null;
+  }>({ avatar: null, avatarUrl: null });
   const transferQueue = useTransferQueue();
   const { flags } = useFeatures();
+
+  useEffect(() => {
+    if (!username) {
+      setSelfAvatar({ avatar: null, avatarUrl: null });
+      return;
+    }
+    let active = true;
+    listAccountProfiles()
+      .then((profiles) => {
+        if (!active) return;
+        const self =
+          profiles.find((profile) => profile.username === username) ??
+          profiles[0];
+        if (!self) {
+          setSelfAvatar({ avatar: null, avatarUrl: null });
+          return;
+        }
+        setSelfAvatar({ avatar: self.avatar, avatarUrl: self.avatarUrl });
+      })
+      .catch(() => {
+        if (active) setSelfAvatar({ avatar: null, avatarUrl: null });
+      });
+    return () => {
+      active = false;
+    };
+  }, [username]);
 
   const activeTasks = transferQueue.filter((task) =>
     ["pending", "in-progress", "paused"].includes(task.status)
@@ -265,8 +299,8 @@ function Header({
           {username ? (
             <UserAvatar
               username={username}
-              avatar={null}
-              avatarUrl={null}
+              avatar={selfAvatar.avatar}
+              avatarUrl={selfAvatar.avatarUrl}
               size={28}
             />
           ) : (

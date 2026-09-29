@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   FormControlLabel,
   Stack,
@@ -14,14 +13,11 @@ import {
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import HubIcon from "@mui/icons-material/Hub";
 import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
 import {
-  AccountUser,
   changeOwnPassword,
   createAccountUser,
-  listAccountUsers,
-  resetAccountPassword,
-  setAccountDisabled,
 } from "./app/accounts";
 import { FeatureFlagName, FeatureFlags, useFeatures } from "./app/features";
 import { NotifyFn } from "./app/notify";
@@ -53,10 +49,12 @@ function SettingsView({
   onNotify,
   onOpenSetup,
   onOpenMcp,
+  onOpenAccounts,
 }: {
   onNotify: NotifyFn;
   onOpenSetup?: () => void;
   onOpenMcp?: () => void;
+  onOpenAccounts?: () => void;
 }) {
   const { flags, sitesHost, config, updateFlags } = useFeatures();
   const [pending, setPending] = useState<FeatureFlagName | null>(null);
@@ -64,17 +62,9 @@ function SettingsView({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
-  const [users, setUsers] = useState<AccountUser[]>([]);
   const [newUsername, setNewUsername] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
-  const [resetting, setResetting] = useState<string | null>(null);
-  const [resetValue, setResetValue] = useState("");
-
-  useEffect(() => {
-    if (!config?.admin) return;
-    listAccountUsers().then(setUsers).catch((error) => onNotify(errorMessage(error), "error"));
-  }, [config?.admin, onNotify]);
 
   const savePassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -101,33 +91,11 @@ function SettingsView({
       await createAccountUser(newUsername, newUserPassword);
       setNewUsername("");
       setNewUserPassword("");
-      setUsers(await listAccountUsers());
       onNotify(strings.accountCreated, "success");
     } catch (error) {
       onNotify(errorMessage(error) || strings.createUserFailed, "error");
     } finally {
       setCreatingUser(false);
-    }
-  };
-
-  const resetPassword = async (username: string) => {
-    try {
-      await resetAccountPassword(username, resetValue);
-      setResetting(null);
-      setResetValue("");
-      onNotify(strings.passwordReset, "success");
-    } catch (error) {
-      onNotify(errorMessage(error) || strings.resetPasswordFailed, "error");
-    }
-  };
-
-  const toggleDisabled = async (user: AccountUser) => {
-    try {
-      await setAccountDisabled(user.username, !user.disabled);
-      setUsers(await listAccountUsers());
-      onNotify(strings.accountUpdated, "success");
-    } catch (error) {
-      onNotify(errorMessage(error) || strings.updateUserFailed, "error");
     }
   };
 
@@ -202,6 +170,18 @@ function SettingsView({
             {strings.accountsHint}
           </Typography>
 
+          {onOpenAccounts && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<AccountCircleIcon />}
+              onClick={onOpenAccounts}
+              sx={{ mb: 1.5 }}
+            >
+              {strings.openAccounts}
+            </Button>
+          )}
+
           <Box sx={{ ...cardSx, mb: 1.5 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.25 }}>
               <PersonAddAlt1Icon fontSize="small" color="action" />
@@ -235,109 +215,6 @@ function SettingsView({
               </Button>
             </Stack>
           </Box>
-
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
-            {strings.accountListSection}
-          </Typography>
-          <Stack spacing={1}>
-            {users.length === 0 ? (
-              <Box sx={cardSx}>
-                <Typography variant="body2" color="text.secondary">
-                  {strings.noAccountsYet}
-                </Typography>
-              </Box>
-            ) : (
-              users.map((user) => (
-                <Box key={user.username} sx={cardSx}>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    alignItems={{ xs: "stretch", sm: "center" }}
-                    justifyContent="space-between"
-                  >
-                    <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 700, wordBreak: "break-all" }}>
-                        {user.username}
-                      </Typography>
-                      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                        <Chip
-                          size="small"
-                          label={user.role === "admin" ? strings.accountRoleAdmin : strings.accountRoleUser}
-                          color={user.role === "admin" ? "primary" : "default"}
-                          variant={user.role === "admin" ? "filled" : "outlined"}
-                        />
-                        {user.disabled && (
-                          <Chip size="small" label={strings.accountDisabled} color="warning" />
-                        )}
-                      </Stack>
-                    </Stack>
-                    {user.role !== "admin" && (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => {
-                            setResetting((current) =>
-                              current === user.username ? null : user.username
-                            );
-                            setResetValue("");
-                          }}
-                        >
-                          {strings.resetPassword}
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color={user.disabled ? "success" : "warning"}
-                          onClick={() => void toggleDisabled(user)}
-                        >
-                          {user.disabled ? strings.enableAccount : strings.disableAccount}
-                        </Button>
-                      </Stack>
-                    )}
-                  </Stack>
-                  {resetting === user.username && (
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      spacing={1}
-                      alignItems={{ sm: "flex-start" }}
-                      sx={{ mt: 1.25, pt: 1.25, borderTop: "1px solid", borderColor: "divider" }}
-                    >
-                      <TextField
-                        size="small"
-                        type="password"
-                        label={strings.newPassword}
-                        value={resetValue}
-                        onChange={(event) => setResetValue(event.target.value)}
-                        helperText={strings.passwordMinLengthHint}
-                        fullWidth
-                        sx={{ flex: 1 }}
-                      />
-                      <Button
-                        size="small"
-                        variant="contained"
-                        disabled={!resetValue}
-                        onClick={() => void resetPassword(user.username)}
-                        sx={{ mt: { sm: 0.5 } }}
-                      >
-                        {strings.savePassword}
-                      </Button>
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          setResetting(null);
-                          setResetValue("");
-                        }}
-                        sx={{ mt: { sm: 0.5 } }}
-                      >
-                        {strings.cancelResetPassword}
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-              ))
-            )}
-          </Stack>
         </Box>
       )}
       <Stack spacing={1.5}>

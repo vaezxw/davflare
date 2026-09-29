@@ -237,4 +237,27 @@ describe("SettingsView setup entry", () => {
     );
     expect(onOpenMcp).toHaveBeenCalled();
   });
+
+  test("admin opens accounts via button; no account list UI", () => {
+    const onOpenAccounts = vi.fn();
+    mockUseFeatures.mockReturnValue({
+      flags: DEFAULT_FEATURE_FLAGS,
+      sitesHost: "sites.example.com",
+      config: { admin: true },
+      updateFlags: vi.fn(),
+    });
+    render(
+      <SettingsView onNotify={vi.fn()} onOpenAccounts={onOpenAccounts} />
+    );
+    expect(
+      screen.getByRole("button", { name: strings.createAccount })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(strings.accountListSection)).not.toBeInTheDocument();
+    expect(screen.queryByText(strings.noAccountsYet)).not.toBeInTheDocument();
+    expect(screen.queryByText(strings.resetPassword)).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: strings.openAccounts })
+    );
+    expect(onOpenAccounts).toHaveBeenCalled();
+  });
 });

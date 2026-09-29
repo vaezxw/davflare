@@ -676,6 +676,7 @@ function Main({
             onNotify={onNotify}
             onOpenSetup={() => navigate({ kind: "setup" })}
             onOpenMcp={() => navigate({ kind: "mcp" })}
+            onOpenAccounts={() => navigate({ kind: "accounts" })}
           />
         </Box>
       )}
