@@ -1,9 +1,5 @@
-import {
-  hasApiKeyHeader,
-  jsonResponse,
-  textResponse,
-  verifyBasicAuth,
-} from "./_apikey";
+import { hasApiKeyHeader, jsonResponse, textResponse, verifyBasicAuth } from "./_apikey";
+import { authenticateBasicPrincipal } from "../_users";
 import {
   loadFeatureFlags,
   normalizeFeatureFlags,
@@ -35,10 +31,12 @@ export function authorizeConfigWrite(
 
 function configBody(
   env: ConfigEnv,
-  flags: ReturnType<typeof normalizeFeatureFlags>
+  flags: ReturnType<typeof normalizeFeatureFlags>,
+  principal: { username: string; role: "admin" | "user" }
 ) {
   return {
-    username: env.WEBDAV_USERNAME || "",
+    username: principal.username,
+    admin: principal.role === "admin",
     publicRead: env.WEBDAV_PUBLIC_READ === "1",
     sitesHost: normalizeSitesHost(env.SITES_HOST) || null,
     ...flags,
@@ -47,27 +45,31 @@ function configBody(
 
 export const onRequestGet: PagesFunction<ConfigEnv> = async (context) => {
   const { request, env } = context;
-  if (!verifyBasicAuth(request, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
-    return textResponse("Unauthorized", 401);
-  }
+  const principal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (!principal) return textResponse("Unauthorized", 401);
 
   const flags = await loadFeatureFlags(env.BUCKET);
-  return jsonResponse(configBody(env, flags));
+  return jsonResponse(configBody(env, flags, principal));
 };
 
 export const onRequestPatch: PagesFunction<ConfigEnv> = async (context) => {
   const { request, env } = context;
-  const auth = authorizeConfigWrite(
+  const principal = await authenticateBasicPrincipal(
     request,
+    env.BUCKET,
     env.WEBDAV_USERNAME,
     env.WEBDAV_PASSWORD
   );
-  if (auth === "api-key-forbidden") {
+  if (!principal && hasApiKeyHeader(request)) {
     return new Response("API keys cannot change feature flags", { status: 403 });
   }
-  if (auth !== "ok") {
-    return textResponse("Unauthorized", 401);
-  }
+  if (!principal) return textResponse("Unauthorized", 401);
+  if (principal.role !== "admin") return textResponse("Forbidden", 403);
 
   let body: unknown;
   try {
@@ -84,7 +86,7 @@ export const onRequestPatch: PagesFunction<ConfigEnv> = async (context) => {
   const current = await loadFeatureFlags(env.BUCKET);
   const next = normalizeFeatureFlags({ ...current, ...parsed.patch });
   await saveFeatureFlags(env.BUCKET, next);
-  return jsonResponse(configBody(env, next));
+  return jsonResponse(configBody(env, next, principal));
 };
 
 export const onRequestPut = onRequestPatch;

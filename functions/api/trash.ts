@@ -4,6 +4,7 @@ import {
   isSessionOrKeyAuthorized,
   textResponse,
 } from "./_apikey";
+import { authenticateBasicPrincipal, scopeStoragePath } from "../_users";
 
 interface TrashEnv {
   BUCKET: R2Bucket;
@@ -283,8 +284,18 @@ async function handleSoftDelete(request: Request, env: TrashEnv) {
 
   const keys = body.keys || [];
   if (keys.length === 0) return new Response("Bad Request", { status: 400 });
+  const owner = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  const scopedKeys = owner?.homePrefix
+    ? keys.map((key) => scopeStoragePath(owner.homePrefix, key))
+    : keys;
+  if (scopedKeys.some((key) => key === null)) return new Response("Bad Request", { status: 400 });
 
-  const results = await softDeleteKeys(env.BUCKET, keys);
+  const results = await softDeleteKeys(env.BUCKET, scopedKeys as string[]);
 
   return new Response(JSON.stringify({ results }), {
     headers: { "Content-Type": "application/json" },

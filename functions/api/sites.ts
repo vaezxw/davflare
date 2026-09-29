@@ -14,6 +14,7 @@ import {
   putHostnameIndex,
   siteConfigKey,
 } from "../_sites";
+import { authenticateBasicPrincipal } from "../_users";
 import {
   copyObject,
   isCollectionObject,
@@ -98,6 +99,15 @@ export const onRequestGet: PagesFunction<SitesApiEnv> = async (context) => {
     ))) {
     return textResponse("Unauthorized", 401);
   }
+  const sitePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (sitePrincipal && sitePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
+  }
 
   const url = new URL(request.url);
   const withStats = url.searchParams.get("stats") === "1";
@@ -139,6 +149,15 @@ export const onRequestPost: PagesFunction<SitesApiEnv> = async (context) => {
       env.WEBDAV_PASSWORD
     ))) {
     return textResponse("Unauthorized", 401);
+  }
+  const sitePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (sitePrincipal && sitePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
   }
 
   let body: {
@@ -277,6 +296,15 @@ export const onRequestDelete: PagesFunction<SitesApiEnv> = async (context) => {
       env.WEBDAV_PASSWORD
     ))) {
     return textResponse("Unauthorized", 401);
+  }
+  const sitePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (sitePrincipal && sitePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
   }
 
   const slug = (new URL(request.url).searchParams.get("slug") || "").trim().toLowerCase();

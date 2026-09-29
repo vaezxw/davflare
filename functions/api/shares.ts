@@ -4,6 +4,7 @@ import {
   isSessionOrKeyAuthorized,
   textResponse,
 } from "./_apikey";
+import { authenticateBasicPrincipal, scopeStoragePath, unscopeStoragePath } from "../_users";
 
 interface SharesEnv {
   BUCKET: R2Bucket;
@@ -19,7 +20,8 @@ function basename(key: string) {
 
 async function readShares(
   bucket: R2Bucket,
-  request: Request
+  request: Request,
+  homePrefix = ""
 ): Promise<Array<Record<string, unknown>>> {
   const shares: Array<Record<string, unknown>> = [];
   let cursor: string | undefined;
@@ -40,13 +42,22 @@ async function readShares(
         // 单个损坏的分享元数据不应让整个列表 500，跳过即可。
         continue;
       }
+      const storedKey = String(parsed.key || "");
+      if (
+        homePrefix &&
+        storedKey !== homePrefix.replace(/\/$/, "") &&
+        !storedKey.startsWith(homePrefix.endsWith("/") ? homePrefix : `${homePrefix}/`) &&
+        !storedKey.startsWith(`${homePrefix.replace(/\/$/, "")}/`)
+      ) {
+        continue;
+      }
       const token = object.key
         .slice(SHARES_PREFIX.length)
         .replace(/\.json$/, "");
       const extractCode = typeof parsed.extractCode === "string" ? parsed.extractCode : "";
       shares.push({
         token,
-        key: parsed.key,
+        key: unscopeStoragePath(homePrefix, String(parsed.key || "")),
         name: parsed.name || basename(String(parsed.key || "")),
         expiresAt: parsed.expiresAt || null,
         createdAt: parsed.createdAt,
@@ -73,7 +84,13 @@ export const onRequestGet: PagesFunction<SharesEnv> = async (context) => {
     ))) {
     return textResponse("Unauthorized", 401);
   }
-  return new Response(JSON.stringify(await readShares(env.BUCKET, request)), {
+  const reader = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  return new Response(JSON.stringify(await readShares(env.BUCKET, request, reader?.homePrefix || "")), {
     headers: { "Content-Type": "application/json" },
   });
 };
@@ -98,9 +115,20 @@ export const onRequestPost: PagesFunction<SharesEnv> = async (context) => {
 
   // 与 /api/archive 一致接受目录的尾斜杠写法（"文件夹/"）：去掉首尾斜杠后按规范键存储，
   // 文件键不受影响；内部前缀校验放在归一化之后（"_$flaredrive$/" → "_$flaredrive$" 仍被拒）。
-  const key = String(body.key || "").trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  let key = String(body.key || "").trim().replace(/^\/+/, "").replace(/\/+$/, "");
   if (!key) return new Response("Bad Request", { status: 400 });
   if (isInternalKey(key)) return new Response("Bad Request", { status: 400 });
+  const sharePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (sharePrincipal?.homePrefix) {
+    const scoped = scopeStoragePath(sharePrincipal.homePrefix, key);
+    if (!scoped) return new Response("Bad Request", { status: 400 });
+    key = scoped;
+  }
 
   const object = await env.BUCKET.head(key);
   // 目录判定与其他端点一致：contentType 或 resourcetype 任一标记都算目录

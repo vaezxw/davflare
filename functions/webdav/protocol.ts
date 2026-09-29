@@ -1,5 +1,5 @@
 // WebDAV 方法实现与请求分发；工具层在 davUtil/davXml/davLock，类型在 davTypes。
-import { utf8ToBase64 } from "../api/_apikey";
+import { authenticateBasicPrincipal, scopeStoragePath, unscopeStoragePath } from "../_users";
 import { withUtf8Charset } from "../_contentType";
 import { acceptListingLang, renderListingPage, type ListingEntry } from "./listingPage";
 import {
@@ -26,7 +26,6 @@ import {
   releaseThumbnailRef,
   thumbnailObjectKey,
   thumbnailRefKey,
-  timingSafeEqual,
 } from "./davUtil";
 import {
   DAV_NAMESPACE,
@@ -94,10 +93,12 @@ async function handleGet({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   const collection = await isCollectionPath(bucket, path);
 
@@ -115,8 +116,8 @@ async function handleGet({
       entries.push({
         name:
           object.httpMetadata?.contentDisposition ??
-          object.key.slice(prefix?.length ?? 0),
-        href: getResourceHref(object.key, object.isCollection === true),
+          (unscopeStoragePath(homePrefix, object.key).split("/").pop() || object.key),
+        href: getResourceHref(object.key, object.isCollection === true, homePrefix),
         isCollection: object.isCollection === true,
         size: object.isCollection ? null : object.size,
         uploaded: object.isCollection ? null : object.uploaded,
@@ -281,10 +282,12 @@ async function handlePut({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   const url = new URL(request.url);
   if (url.searchParams.has("uploadId") && url.searchParams.has("partNumber")) {
@@ -369,7 +372,7 @@ async function handlePut({
   if (etagValue) etagHeaders.set("ETag", etagValue);
 
   return existing === null
-    ? createdResponse(path, false, "", etagHeaders)
+    ? createdResponse(path, false, "", etagHeaders, homePrefix)
     : new Response(null, { status: 204, headers: etagHeaders });
 }
 
@@ -377,10 +380,12 @@ async function handleMkcol({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   if (path === "") {
     return new Response("Method Not Allowed", { status: 405 });
@@ -410,7 +415,7 @@ async function handleMkcol({
     },
     customMetadata: { resourcetype: "<collection />" },
   });
-  return createdResponse(path, true);
+  return createdResponse(path, true, "", undefined, homePrefix);
 }
 
 async function handleDelete({
@@ -456,11 +461,12 @@ async function handleDelete({
 function generatePropfindResponse(
   object: R2Object | DavObject | null,
   propfindRequest: PropfindRequest,
+  homePrefix = "",
 ): string {
   const href =
     object === null
       ? DAV_ENDPOINT_WITH_SLASH
-      : getResourceHref(object.key, isCollectionObject(object));
+      : getResourceHref(object.key, isCollectionObject(object), homePrefix);
   const deadProperties = getDeadProperties(object?.customMetadata);
   const liveProperties = Object.entries(fromR2Object(object)).flatMap(([key, value]) =>
     value === undefined ? [] : [renderDavProperty(key, value)],
@@ -526,10 +532,12 @@ async function handlePropfind({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   if (request.method !== "OPTIONS" && path.startsWith(INTERNAL_PREFIX)) {
     return new Response("Not Found", { status: 404 });
@@ -545,7 +553,7 @@ async function handlePropfind({
 <multistatus xmlns="DAV:" xmlns:fd="${FLAREDRIVE_NAMESPACE}">`;
 
   if (path === "") {
-    page += generatePropfindResponse(null, propfindRequest);
+    page += generatePropfindResponse(null, propfindRequest, homePrefix);
     isCollection = true;
   } else {
     let object: R2Object | DavObject | null = await bucket.head(path);
@@ -567,6 +575,7 @@ async function handlePropfind({
     page += generatePropfindResponse(
       { ...(object as R2Object | DavObject), isCollection },
       propfindRequest,
+      homePrefix,
     );
   }
 
@@ -579,7 +588,7 @@ async function handlePropfind({
       case "infinity": {
         const prefix = path === "" ? undefined : `${path}/`;
         for await (const object of listAll(bucket, prefix, depth === "infinity")) {
-          page += generatePropfindResponse(object, propfindRequest);
+          page += generatePropfindResponse(object, propfindRequest, homePrefix);
         }
         break;
       }
@@ -715,17 +724,22 @@ async function handleCopy({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   const dontOverwrite = request.headers.get("Overwrite") === "F";
   const destinationHeader = request.headers.get("Destination");
   if (destinationHeader === null) {
     return new Response("Bad Request", { status: 400 });
   }
-  const destination = parseDestinationPath(destinationHeader, request.url);
+  const parsedDestination = parseDestinationPath(destinationHeader, request.url);
+  const destination = parsedDestination === null
+    ? null
+    : scopeStoragePath(homePrefix, parsedDestination);
   if (destination === null) {
     return new Response("Bad Request", { status: 400 });
   }
@@ -835,7 +849,7 @@ async function handleCopy({
 
   return destinationExists
     ? new Response(null, { status: 204 })
-    : createdResponse(destination, isDirectory);
+    : createdResponse(destination, isDirectory, "", undefined, homePrefix);
 }
 
 async function deleteDestination(
@@ -866,17 +880,22 @@ async function handleMove({
   bucket,
   path,
   request,
+  homePrefix = "",
 }: {
   bucket: R2Bucket;
   path: string;
   request: Request;
+  homePrefix?: string;
 }): Promise<Response> {
   const overwrite = (request.headers.get("Overwrite") ?? "T") !== "F";
   const destinationHeader = request.headers.get("Destination");
   if (destinationHeader === null) {
     return new Response("Bad Request", { status: 400 });
   }
-  const destination = parseDestinationPath(destinationHeader, request.url);
+  const parsedDestination = parseDestinationPath(destinationHeader, request.url);
+  const destination = parsedDestination === null
+    ? null
+    : scopeStoragePath(homePrefix, parsedDestination);
   if (destination === null) {
     return new Response("Bad Request", { status: 400 });
   }
@@ -979,7 +998,7 @@ async function handleMove({
 
   return destinationExists
     ? new Response(null, { status: 204 })
-    : createdResponse(destination, isDirectory);
+    : createdResponse(destination, isDirectory, "", undefined, homePrefix);
 }
 
 async function handleLock({
@@ -1272,20 +1291,11 @@ function handleOptions(): Response {
   });
 }
 
-function isAuthorized(authorizationHeader: string, username: string, password: string): boolean {
-  // fail closed：凭据未配置或为空时一律拒绝（与 api/_apikey.ts 的 verifyBasicAuth 对齐），
-  // 避免 btoa("undefined:undefined") / btoa(":") 这类固定值成为可被猜中的有效 Basic 头。
-  if (!username || !password) return false;
-  const encoder = new TextEncoder();
-  const header = encoder.encode(authorizationHeader);
-  const expected = encoder.encode(`Basic ${utf8ToBase64(`${username}:${password}`)}`);
-  return timingSafeEqual(header, expected);
-}
-
 async function dispatchHandler(
   bucket: R2Bucket,
   path: string,
   request: Request,
+  homePrefix = "",
 ): Promise<Response> {
   if (path.startsWith(INTERNAL_PREFIX)) {
     if (!path.startsWith(THUMBNAIL_PREFIX)) {
@@ -1302,21 +1312,21 @@ async function dispatchHandler(
     case "HEAD":
       return handleHead({ bucket, path, request });
     case "GET":
-      return handleGet({ bucket, path, request });
+      return handleGet({ bucket, path, request, homePrefix });
     case "PUT":
-      return handlePut({ bucket, path, request });
+      return handlePut({ bucket, path, request, homePrefix });
     case "DELETE":
       return handleDelete({ bucket, path, request });
     case "MKCOL":
-      return handleMkcol({ bucket, path, request });
+      return handleMkcol({ bucket, path, request, homePrefix });
     case "PROPFIND":
-      return handlePropfind({ bucket, path, request });
+      return handlePropfind({ bucket, path, request, homePrefix });
     case "PROPPATCH":
       return handleProppatch({ bucket, path, request });
     case "COPY":
-      return handleCopy({ bucket, path, request });
+      return handleCopy({ bucket, path, request, homePrefix });
     case "MOVE":
-      return handleMove({ bucket, path, request });
+      return handleMove({ bucket, path, request, homePrefix });
     case "LOCK":
       return handleLock({ bucket, path, request });
     case "UNLOCK":
@@ -1356,20 +1366,40 @@ async function handleRequest(context: PagesContext): Promise<Response> {
     (env.WEBDAV_PUBLIC_READ === "1" &&
       ["GET", "HEAD", "PROPFIND"].includes(request.method));
 
+  let scopedPath = path;
+  let homePrefix = "";
   if (!skipAuth) {
-    if (!env.WEBDAV_USERNAME || !env.WEBDAV_PASSWORD) {
-      return new Response("WebDAV protocol is not enabled", { status: 403 });
-    }
-    const authorization = request.headers.get("Authorization") ?? "";
-    if (!isAuthorized(authorization, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
+    const principal = await authenticateBasicPrincipal(
+      request,
+      bucket,
+      env.WEBDAV_USERNAME,
+      env.WEBDAV_PASSWORD
+    );
+    if (!principal) {
+      if (!env.WEBDAV_USERNAME || !env.WEBDAV_PASSWORD) {
+        return new Response("WebDAV protocol is not enabled", { status: 403 });
+      }
       return new Response("Unauthorized", {
         status: 401,
         headers: { "WWW-Authenticate": `Basic realm="WebDAV"` },
       });
     }
+    homePrefix = principal.homePrefix;
+    if (homePrefix) {
+      const scoped = scopeStoragePath(homePrefix, path);
+      if (scoped === null) return new Response("Forbidden", { status: 403 });
+      scopedPath = scoped;
+      const homeKey = homePrefix.replace(/\/$/, "");
+      if ((await bucket.head(homeKey)) === null) {
+        await bucket.put(homeKey, new Uint8Array(), {
+          httpMetadata: { contentType: "application/x-directory" },
+          customMetadata: { resourcetype: "<collection />" },
+        });
+      }
+    }
   }
 
-  return dispatchHandler(bucket, path, request);
+  return dispatchHandler(bucket, scopedPath, request, homePrefix);
 }
 
 function addCorsHeaders(response: Response, request: Request): Response {

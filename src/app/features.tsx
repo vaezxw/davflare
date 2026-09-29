@@ -35,6 +35,7 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
 
 export interface AppConfig {
   username: string;
+  admin: boolean;
   publicRead: boolean;
   sitesHost: string | null;
   flags: FeatureFlags;
@@ -57,6 +58,7 @@ export function parseAppConfig(data: unknown): AppConfig {
     data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   return {
     username: typeof src.username === "string" ? src.username : "",
+    admin: src.admin === true,
     publicRead: src.publicRead === true,
     sitesHost: typeof src.sitesHost === "string" && src.sitesHost ? src.sitesHost : null,
     flags: flagsFromPayload(src),
@@ -96,6 +98,7 @@ interface FeaturesContextValue {
 const FeaturesContext = createContext<FeaturesContextValue>({
   config: {
     username: "",
+    admin: false,
     publicRead: false,
     sitesHost: null,
     flags: DEFAULT_FEATURE_FLAGS,
@@ -114,6 +117,7 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
   const { username } = useAuth();
   const [config, setConfig] = useState<AppConfig>({
     username: "",
+    admin: false,
     publicRead: false,
     sitesHost: null,
     flags: DEFAULT_FEATURE_FLAGS,
@@ -132,6 +136,7 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
     if (!username) {
       setConfig({
         username: "",
+        admin: false,
         publicRead: false,
         sitesHost: null,
         flags: DEFAULT_FEATURE_FLAGS,

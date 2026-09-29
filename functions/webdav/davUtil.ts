@@ -1,5 +1,6 @@
 // WebDAV 通用工具：路径解析、集合（目录）判定、缩略图引用计数、条件请求头、
 // 递归列表（listAll）与递归删除（deleteAll）。仅依赖 davTypes。
+import { unscopeStoragePath } from "../_users";
 import type { DavObject, PagesContext } from "./davTypes";
 
 const DAV_ENDPOINT = "/webdav";
@@ -100,11 +101,12 @@ function parseBucketPath(context: PagesContext): [R2Bucket, string] {
   return [bucket, path];
 }
 
-function getResourceHref(key: string, isCollection: boolean): string {
-  if (key === "") {
+function getResourceHref(key: string, isCollection: boolean, homePrefix = ""): string {
+  const logical = unscopeStoragePath(homePrefix, key);
+  if (logical === "") {
     return DAV_ENDPOINT_WITH_SLASH;
   }
-  const encodedPath = key.split("/").map(encodeURIComponent).join("/");
+  const encodedPath = logical.split("/").map(encodeURIComponent).join("/");
   return `${DAV_ENDPOINT_WITH_SLASH}${encodedPath}${isCollection ? "/" : ""}`;
 }
 
@@ -217,9 +219,10 @@ function createdResponse(
   isCollection: boolean,
   body: BodyInit | null = "",
   extraHeaders?: Headers,
+  homePrefix = "",
 ): Response {
   const headers = new Headers(extraHeaders);
-  headers.set("Location", getResourceHref(resourcePath, isCollection));
+  headers.set("Location", getResourceHref(resourcePath, isCollection, homePrefix));
   return new Response(body, {
     status: 201,
     headers,

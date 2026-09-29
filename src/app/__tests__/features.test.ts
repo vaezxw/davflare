@@ -50,6 +50,7 @@ describe("parseAppConfig", () => {
   test("non-object payload and empty sitesHost fall back", () => {
     expect(parseAppConfig(null)).toEqual({
       username: "",
+      admin: false,
       publicRead: false,
       sitesHost: null,
       flags: DEFAULT_FEATURE_FLAGS,

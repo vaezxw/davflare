@@ -2,6 +2,7 @@ import {
   isSessionOrKeyAuthorized,
   textResponse,
 } from "./_apikey";
+import { authenticateBasicPrincipal, unscopeStoragePath } from "../_users";
 
 interface SearchEnv {
   BUCKET: R2Bucket;
@@ -37,6 +38,13 @@ export const onRequestGet: PagesFunction<SearchEnv> = async (context) => {
     );
   }
 
+  const searchPrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  const homePrefix = searchPrincipal?.homePrefix || "";
   const lower = query.toLowerCase();
   const items: Array<Record<string, unknown>> = [];
   let cursor: string | undefined = url.searchParams.get("cursor") || undefined;
@@ -50,6 +58,7 @@ export const onRequestGet: PagesFunction<SearchEnv> = async (context) => {
 
   while (!done) {
     const listing = await env.BUCKET.list({
+      prefix: homePrefix || undefined,
       cursor,
       limit: SCAN_PAGE,
       include: ["httpMetadata", "customMetadata"],
@@ -57,10 +66,12 @@ export const onRequestGet: PagesFunction<SearchEnv> = async (context) => {
 
     for (const object of listing.objects) {
       if (object.key.startsWith("_$flaredrive$/")) continue;
-      if (!object.key.toLowerCase().includes(lower)) continue;
+      if (homePrefix && !object.key.startsWith(homePrefix)) continue;
+      const visibleKey = unscopeStoragePath(homePrefix, object.key);
+      if (!visibleKey.toLowerCase().includes(lower)) continue;
 
       items.push({
-        key: object.key,
+        key: visibleKey,
         size: object.size,
         uploaded: object.uploaded.toISOString(),
         contentType: object.httpMetadata?.contentType || "",

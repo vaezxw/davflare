@@ -1,4 +1,5 @@
 import { loadFeatureFlags } from "../_flags";
+import { authenticateBasicPrincipal } from "../_users";
 
 export const KEYS_PREFIX = "_$flaredrive$/apikeys/";
 export const INTERNAL_PREFIX = "_$flaredrive$/";
@@ -206,7 +207,9 @@ export async function isSessionOrKeyAuthorized(
   username: string,
   password: string
 ): Promise<boolean> {
-  if (verifyBasicAuth(request, username, password)) return true;
+  if (await authenticateBasicPrincipal(request, bucket, username, password)) {
+    return true;
+  }
   const keyAuth = await authorizeApiKey(request, bucket);
   return !(keyAuth instanceof Response);
 }

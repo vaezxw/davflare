@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -7,11 +7,20 @@ import {
   FormControlLabel,
   Stack,
   Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import HubIcon from "@mui/icons-material/Hub";
 
+import {
+  AccountUser,
+  changeOwnPassword,
+  createAccountUser,
+  listAccountUsers,
+  resetAccountPassword,
+  setAccountDisabled,
+} from "./app/accounts";
 import { FeatureFlagName, FeatureFlags, useFeatures } from "./app/features";
 import { NotifyFn } from "./app/notify";
 import { strings } from "./app/strings";
@@ -38,8 +47,74 @@ function SettingsView({
   onOpenSetup?: () => void;
   onOpenMcp?: () => void;
 }) {
-  const { flags, sitesHost, updateFlags } = useFeatures();
+  const { flags, sitesHost, config, updateFlags } = useFeatures();
   const [pending, setPending] = useState<FeatureFlagName | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [users, setUsers] = useState<AccountUser[]>([]);
+  const [newUsername, setNewUsername] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [resetValue, setResetValue] = useState("");
+
+  useEffect(() => {
+    if (!config.admin) return;
+    listAccountUsers().then(setUsers).catch((error) => onNotify(errorMessage(error), "error"));
+  }, [config.admin, onNotify]);
+
+  const savePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      onNotify(strings.passwordMismatch, "error");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await changeOwnPassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      onNotify(strings.passwordChanged, "success");
+    } catch (error) {
+      onNotify(errorMessage(error) || strings.passwordChangeFailed, "error");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const createUser = async () => {
+    try {
+      await createAccountUser(newUsername, newUserPassword);
+      setNewUsername("");
+      setNewUserPassword("");
+      setUsers(await listAccountUsers());
+      onNotify(strings.accountCreated, "success");
+    } catch (error) {
+      onNotify(errorMessage(error) || strings.createUserFailed, "error");
+    }
+  };
+
+  const resetPassword = async (username: string) => {
+    try {
+      await resetAccountPassword(username, resetValue);
+      setResetting(null);
+      setResetValue("");
+      onNotify(strings.passwordReset, "success");
+    } catch (error) {
+      onNotify(errorMessage(error) || strings.resetPasswordFailed, "error");
+    }
+  };
+
+  const toggleDisabled = async (user: AccountUser) => {
+    try {
+      await setAccountDisabled(user.username, !user.disabled);
+      setUsers(await listAccountUsers());
+      onNotify(strings.accountUpdated, "success");
+    } catch (error) {
+      onNotify(errorMessage(error) || strings.updateUserFailed, "error");
+    }
+  };
 
   const toggle = async (key: FeatureFlagName, value: boolean) => {
     setPending(key);
@@ -95,6 +170,45 @@ function SettingsView({
           </Typography>
           <Typography variant="body2">{strings.imagesHostMissingHint}</Typography>
         </Alert>
+      )}
+      <Typography variant="subtitle1" sx={{ mb: 1 }}>{strings.changePasswordTitle}</Typography>
+      <Stack spacing={1.5} sx={{ mb: 3 }}>
+        <TextField label={strings.currentPassword} type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+        <TextField label={strings.newPassword} type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+        <TextField label={strings.confirmPassword} type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+        <Button variant="contained" disabled={savingPassword} onClick={() => void savePassword()}>
+          {strings.savePassword}
+        </Button>
+      </Stack>
+      {config.admin && (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="subtitle1">{strings.accountsTitle}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{strings.accountsHint}</Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
+            <TextField label={strings.accountUsername} value={newUsername} onChange={(event) => setNewUsername(event.target.value)} />
+            <TextField label={strings.newPassword} type="password" value={newUserPassword} onChange={(event) => setNewUserPassword(event.target.value)} />
+            <Button variant="outlined" onClick={() => void createUser()}>{strings.createAccount}</Button>
+          </Stack>
+          <Stack spacing={1}>
+            {users.map((user) => (
+              <Stack key={user.username} direction="row" spacing={1} alignItems="center">
+                <Typography sx={{ minWidth: 120 }}>{user.username}{user.disabled ? ` (${strings.accountDisabled})` : ""}</Typography>
+                {user.role !== "admin" && (
+                  <>
+                    <Button size="small" onClick={() => { setResetting(user.username); setResetValue(""); }}>{strings.resetPassword}</Button>
+                    <Button size="small" onClick={() => void toggleDisabled(user)}>{user.disabled ? strings.enableAccount : strings.disableAccount}</Button>
+                  </>
+                )}
+                {resetting === user.username && (
+                  <>
+                    <TextField size="small" type="password" label={strings.newPassword} value={resetValue} onChange={(event) => setResetValue(event.target.value)} />
+                    <Button size="small" onClick={() => void resetPassword(user.username)}>{strings.savePassword}</Button>
+                  </>
+                )}
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
       )}
       <Stack spacing={1.5}>
         {SWITCHES.map((item) => (

@@ -17,6 +17,7 @@ import {
 } from "../_images";
 import { loadFeatureFlags } from "../_flags";
 import { normalizeSitesHost } from "../_sites";
+import { authenticateBasicPrincipal } from "../_users";
 
 interface ImagesEnv {
   BUCKET: R2Bucket;
@@ -164,6 +165,15 @@ export const onRequestGet: PagesFunction<ImagesEnv> = async (context) => {
     ))) {
     return textResponse("Unauthorized", 401);
   }
+  const imagePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (imagePrincipal && imagePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
+  }
   const flags = await loadFeatureFlags(env.BUCKET);
   if (!flags.imageHost) {
     return new Response("Not Found", { status: 404 });
@@ -187,6 +197,15 @@ export const onRequestPost: PagesFunction<ImagesEnv> = async (context) => {
       env.WEBDAV_PASSWORD
     ))) {
     return textResponse("Unauthorized", 401);
+  }
+  const imagePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (imagePrincipal && imagePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
   }
   const flags = await loadFeatureFlags(env.BUCKET);
   if (!flags.imageHost) {
@@ -280,6 +299,15 @@ export const onRequestDelete: PagesFunction<ImagesEnv> = async (context) => {
       env.WEBDAV_PASSWORD
     ))) {
     return textResponse("Unauthorized", 401);
+  }
+  const imagePrincipal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (imagePrincipal && imagePrincipal.role !== "admin") {
+    return textResponse("Forbidden", 403);
   }
   const flags = await loadFeatureFlags(env.BUCKET);
   if (!flags.imageHost) {

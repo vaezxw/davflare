@@ -6,6 +6,7 @@
  * 内部前缀保护等。通过真实 Request/Response + InMemoryBucket 驱动 onRequest。
  */
 import { onRequest, type WebDavEnv } from "../../../functions/webdav/protocol";
+import { createStoredUser, putStoredUser } from "../../../functions/_users";
 import {
   InMemoryBucket,
   basicAuthHeader,
@@ -149,6 +150,42 @@ describe("webdav OPTIONS / redirect / auth", () => {
       makeEnv(bucket)
     );
     expect(response.status).toBe(401);
+  });
+
+  test("stored user credentials authorize WebDAV", async () => {
+    const bucket = new InMemoryBucket();
+    bucket.seed([{ key: "homes/alice/a.txt", body: "x" }]);
+    await putStoredUser(
+      bucket.asBucket(),
+      await createStoredUser("alice", "stored-secret", { role: "user" })
+    );
+
+    const response = await call(
+      req("/webdav/a.txt", "GET", {
+        Authorization: basicAuthHeader("alice", "stored-secret"),
+      }),
+      makeEnv(bucket)
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  test("stored user authenticates when bootstrap credentials are unset", async () => {
+    const bucket = new InMemoryBucket();
+    bucket.seed([{ key: "homes/alice/a.txt", body: "x" }]);
+    await putStoredUser(
+      bucket.asBucket(),
+      await createStoredUser("alice", "stored-secret", { role: "user" })
+    );
+
+    const response = await call(
+      req("/webdav/a.txt", "GET", {
+        Authorization: basicAuthHeader("alice", "stored-secret"),
+      }),
+      makeEnv(bucket, { WEBDAV_USERNAME: "", WEBDAV_PASSWORD: "" })
+    );
+
+    expect(response.status).toBe(200);
   });
 
   test("empty configured credentials fail closed with 403", async () => {
@@ -1484,5 +1521,45 @@ describe("webdav POST multipart (uploads/complete)", () => {
     );
     expect(response.status).toBe(405);
     expect(response.headers.get("Allow")).toContain("PUT");
+  });
+
+  test("ordinary user stays inside homes while admin still sees the root", async () => {
+    const bucket = new InMemoryBucket();
+    await putStoredUser(
+      bucket.asBucket(),
+      await createStoredUser("bob", "bob-password", { role: "user" })
+    );
+    await call(
+      req("/webdav/root.txt", "PUT", { Authorization: AUTH }, "admin"),
+      makeEnv(bucket)
+    );
+    const bob = basicAuthHeader("bob", "bob-password");
+    const hidden = await call(
+      req("/webdav/root.txt", "GET", { Authorization: bob }),
+      makeEnv(bucket)
+    );
+    expect(hidden.status).toBe(404);
+
+    const created = await call(
+      req("/webdav/note.txt", "PUT", { Authorization: bob }, "mine"),
+      makeEnv(bucket)
+    );
+    expect(created.status).toBe(201);
+    expect(created.headers.get("Location")).toBe("/webdav/note.txt");
+    expect(bucket.has("homes/bob/note.txt")).toBe(true);
+
+    const listing = await call(
+      req("/webdav/", "PROPFIND", { Authorization: bob, Depth: "1" }),
+      makeEnv(bucket)
+    );
+    const xml = await listing.text();
+    expect(xml).toContain("/webdav/note.txt");
+    expect(xml).not.toContain("homes/bob");
+
+    const admin = await call(
+      req("/webdav/", "PROPFIND", { Authorization: AUTH, Depth: "1" }),
+      makeEnv(bucket)
+    );
+    expect(await admin.text()).toContain("homes");
   });
 });

@@ -5,13 +5,25 @@ import {
   listStoredKeys,
   sha256Hex,
   textResponse,
-  verifyBasicAuth,
 } from "./_apikey";
+import { authenticateBasicPrincipal } from "../_users";
 
 interface KeysEnv {
   BUCKET: R2Bucket;
   WEBDAV_USERNAME: string;
   WEBDAV_PASSWORD: string;
+}
+
+async function requireAdmin(request: Request, env: KeysEnv) {
+  const principal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (!principal) return textResponse("Unauthorized", 401);
+  if (principal.role !== "admin") return textResponse("Forbidden", 403);
+  return principal;
 }
 
 function usernameFromBasic(request: Request): string {
@@ -67,18 +79,16 @@ async function listKeysSorted(bucket: R2Bucket): Promise<StoredApiKey[]> {
 
 export const onRequestGet: PagesFunction<KeysEnv> = async (context) => {
   const { request, env } = context;
-  if (!verifyBasicAuth(request, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
-    return textResponse("Unauthorized", 401);
-  }
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
   const keys = await listKeysSorted(env.BUCKET);
   return jsonResponse(keys.map(publicKey));
 };
 
 export const onRequestPost: PagesFunction<KeysEnv> = async (context) => {
   const { request, env } = context;
-  if (!verifyBasicAuth(request, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
-    return textResponse("Unauthorized", 401);
-  }
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
 
   let body: { name?: string; expiresInHours?: number | null; key?: string };
   try {
@@ -134,9 +144,8 @@ export const onRequestPost: PagesFunction<KeysEnv> = async (context) => {
 
 export const onRequestDelete: PagesFunction<KeysEnv> = async (context) => {
   const { request, env } = context;
-  if (!verifyBasicAuth(request, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
-    return textResponse("Unauthorized", 401);
-  }
+  const admin = await requireAdmin(request, env);
+  if (admin instanceof Response) return admin;
 
   const id = new URL(request.url).searchParams.get("id");
   if (!id) return new Response("Bad Request", { status: 400 });

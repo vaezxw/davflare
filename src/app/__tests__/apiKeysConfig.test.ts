@@ -193,6 +193,7 @@ describe("config", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       username: "user",
+      admin: true,
       publicRead: false,
       sitesHost: "sites.example.com",
       webdav: true,
