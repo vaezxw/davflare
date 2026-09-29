@@ -47,7 +47,11 @@ export async function fetchAccountTree(
     `/api/accounts/${encodeURIComponent(username)}/tree?${params.toString()}`
   );
   if (!response.ok) {
-    throw new Error(await readError(response, translate("requestFailed")));
+    const error = new Error(
+      await readError(response, translate("requestFailed"))
+    ) as Error & { status: number };
+    error.status = response.status;
+    throw error;
   }
   return response.json();
 }

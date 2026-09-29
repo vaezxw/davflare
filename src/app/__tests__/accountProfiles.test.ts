@@ -96,9 +96,12 @@ describe("accountProfiles / fetchAccountTree", () => {
     expect(mockAuthFetch).toHaveBeenCalledWith("/api/accounts/bob/tree?path=");
   });
 
-  test("non-2xx throws", async () => {
+  test("non-2xx throws with status", async () => {
     mockAuthFetch.mockError(403, "Forbidden");
-    await expect(fetchAccountTree("alice", "")).rejects.toThrow("Forbidden");
+    await expect(fetchAccountTree("alice", "")).rejects.toMatchObject({
+      message: "Forbidden",
+      status: 403,
+    });
   });
 });
 

@@ -7,8 +7,28 @@ import type { UserAvatar as AvatarValue } from "./app/accountProfiles";
 
 const avatarUrlCache = new Map<string, Promise<string | null>>();
 
-function loadAvatarObjectUrl(avatarUrl: string): Promise<string | null> {
-  let cached = avatarUrlCache.get(avatarUrl);
+/** Cache key includes avatar.value so upload overwrite / preset change busts stale blobs. */
+export function avatarCacheKey(
+  avatarUrl: string,
+  avatar: AvatarValue | null | undefined
+): string {
+  return `${avatarUrl}#${avatar?.value ?? ""}`;
+}
+
+export function invalidateAvatarUrlCache(avatarUrl?: string | null): void {
+  if (!avatarUrl) {
+    avatarUrlCache.clear();
+    return;
+  }
+  for (const key of [...avatarUrlCache.keys()]) {
+    if (key === avatarUrl || key.startsWith(`${avatarUrl}#`)) {
+      avatarUrlCache.delete(key);
+    }
+  }
+}
+
+function loadAvatarObjectUrl(cacheKey: string, avatarUrl: string): Promise<string | null> {
+  let cached = avatarUrlCache.get(cacheKey);
   if (!cached) {
     cached = (async () => {
       try {
@@ -20,7 +40,7 @@ function loadAvatarObjectUrl(avatarUrl: string): Promise<string | null> {
         return null;
       }
     })();
-    avatarUrlCache.set(avatarUrl, cached);
+    avatarUrlCache.set(cacheKey, cached);
   }
   return cached;
 }
@@ -52,25 +72,27 @@ export function UserAvatar({
 }: UserAvatarProps) {
   const [src, setSrc] = useState<string | null>(null);
   const isUpload = avatar?.kind === "upload" && Boolean(avatarUrl);
+  const cacheKey =
+    isUpload && avatarUrl ? avatarCacheKey(avatarUrl, avatar) : null;
   const preset =
     avatar?.kind === "preset" ? findAvatarPreset(avatar.value) : undefined;
   const bg = preset?.color ?? DEFAULT_BG;
   const initials = initialsFor(username);
 
   useEffect(() => {
-    if (!isUpload || !avatarUrl) {
+    if (!cacheKey || !avatarUrl) {
       setSrc(null);
       return;
     }
     let active = true;
     setSrc(null);
-    loadAvatarObjectUrl(avatarUrl).then((objectUrl) => {
+    loadAvatarObjectUrl(cacheKey, avatarUrl).then((objectUrl) => {
       if (active) setSrc(objectUrl);
     });
     return () => {
       active = false;
     };
-  }, [isUpload, avatarUrl]);
+  }, [cacheKey, avatarUrl]);
 
   if (isUpload && src) {
     return (

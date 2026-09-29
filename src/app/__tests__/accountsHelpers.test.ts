@@ -126,6 +126,25 @@ describe("accounts helpers", () => {
     expect(capped.totalBytes).toBe(STATS_OBJECT_CAP);
   });
 
+  test("summarizePrefix charges internal keys toward scan cap", async () => {
+    const bucket = new InMemoryBucket();
+    const entries = [];
+    for (let i = 0; i < STATS_OBJECT_CAP + 5; i++) {
+      entries.push({
+        key: `_$flaredrive$/thumbnails/t-${String(i).padStart(5, "0")}`,
+        body: "x",
+      });
+    }
+    // Would be countable if internals were free — must not be reached past cap.
+    entries.push({ key: "homes/alice/a.txt", body: "aa" });
+    bucket.seed(entries);
+
+    const summary = await summarizePrefix(bucket.asBucket(), "");
+    expect(summary.truncated).toBe(true);
+    expect(summary.fileCount).toBe(0);
+    expect(summary.totalBytes).toBe(0);
+  });
+
   test("listTreeChildren returns one level under home", async () => {
     const bucket = new InMemoryBucket();
     bucket.seedDir("homes/alice");

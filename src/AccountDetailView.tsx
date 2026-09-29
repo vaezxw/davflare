@@ -35,7 +35,7 @@ import { NotifyFn } from "./app/notify";
 import { Route } from "./app/route";
 import { strings } from "./app/strings";
 import { errorMessage, formatListingSize } from "./app/utils";
-import UserAvatar from "./UserAvatar";
+import UserAvatar, { invalidateAvatarUrlCache } from "./UserAvatar";
 
 const AVATAR_CROP_SIZE = 256;
 const AVATAR_MAX_BYTES = 512 * 1024;
@@ -190,11 +190,42 @@ function AccountDetailView({
       setExpanded(new Set([""]));
       setNodes({});
       try {
-        await loadProfile();
+        const found = await loadProfile();
         if (!active) return;
+        if (!found) {
+          onNotify(strings.requestFailed, "error");
+          if (selfUsername && selfUsername !== username) {
+            navigate({ kind: "account", username: selfUsername });
+          } else {
+            navigate({ kind: "accounts" });
+          }
+          return;
+        }
         await loadTreePath("");
       } catch (error) {
-        if (active) onNotify(errorMessage(error), "error");
+        if (!active) return;
+        onNotify(errorMessage(error), "error");
+        const status =
+          typeof error === "object" &&
+          error !== null &&
+          "status" in error &&
+          typeof (error as { status: unknown }).status === "number"
+            ? (error as { status: number }).status
+            : undefined;
+        const message =
+          error instanceof Error ? error.message.toLowerCase() : "";
+        const forbidden =
+          status === 403 ||
+          status === 404 ||
+          message.includes("forbidden") ||
+          message.includes("not found");
+        if (forbidden) {
+          if (selfUsername && selfUsername !== username) {
+            navigate({ kind: "account", username: selfUsername });
+          } else {
+            navigate({ kind: "accounts" });
+          }
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -202,7 +233,14 @@ function AccountDetailView({
     return () => {
       active = false;
     };
-  }, [username, loadProfile, loadTreePath, onNotify]);
+  }, [
+    username,
+    selfUsername,
+    loadProfile,
+    loadTreePath,
+    onNotify,
+    navigate,
+  ]);
 
   const rootSummary = nodes[""]?.summary;
   const truncated = Boolean(rootSummary?.truncated);
@@ -252,6 +290,7 @@ function AccountDetailView({
   };
 
   const refreshAfterAvatar = async () => {
+    invalidateAvatarUrlCache(`/api/accounts/${encodeURIComponent(username)}/avatar`);
     await loadProfile();
     setAvatarOpen(false);
   };

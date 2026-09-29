@@ -145,7 +145,8 @@ export const onRequestPut: PagesFunction<AvatarEnv> = async (context) => {
     await env.BUCKET.put(avatarObjectKey(username), bytes, {
       httpMetadata: { contentType },
     });
-    avatar = { kind: "upload", value: username };
+    // Cache-bust token so clients refresh after overwrite of the same object key.
+    avatar = { kind: "upload", value: String(Date.now()) };
   } else {
     return textResponse("Bad Request", 400);
   }

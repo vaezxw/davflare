@@ -102,12 +102,14 @@ export async function summarizePrefix(
     });
 
     for (const object of listing.objects) {
-      if (isInternalKey(object.key)) continue;
+      // Every listed object charges the scan budget (Workers Free), including
+      // internal `_$flaredrive$/` keys. Only non-internal files count in totals.
       if (scanned >= STATS_OBJECT_CAP) {
         truncated = true;
         break;
       }
       scanned += 1;
+      if (isInternalKey(object.key)) continue;
       if (isDirectoryMarker(object)) continue;
       fileCount += 1;
       totalBytes += Number(object.size) || 0;

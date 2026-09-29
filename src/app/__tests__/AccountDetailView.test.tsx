@@ -194,4 +194,81 @@ describe("AccountDetailView", () => {
     );
     await waitFor(() => expect(onNotify).toHaveBeenCalledWith("detail-fail", "error"));
   });
+
+  test("forbidden tree redirects to own account", async () => {
+    mockList.mockResolvedValue([
+      profile,
+      {
+        ...profile,
+        username: "bob",
+        avatar: null,
+      },
+    ]);
+    const err = Object.assign(new Error("Forbidden"), { status: 403 });
+    mockTree.mockRejectedValue(err);
+    const navigate = vi.fn();
+    const onNotify = vi.fn();
+    stubFeatures("alice");
+    render(
+      <AccountDetailView
+        username="bob"
+        navigate={navigate}
+        onNotify={onNotify}
+      />
+    );
+    await waitFor(() => expect(onNotify).toHaveBeenCalledWith("Forbidden", "error"));
+    expect(navigate).toHaveBeenCalledWith({ kind: "account", username: "alice" });
+  });
+
+  test("forbidden tree redirects to accounts when viewing self", async () => {
+    const err = Object.assign(new Error("Forbidden"), { status: 403 });
+    mockTree.mockRejectedValue(err);
+    const navigate = vi.fn();
+    const onNotify = vi.fn();
+    stubFeatures("alice");
+    render(
+      <AccountDetailView
+        username="alice"
+        navigate={navigate}
+        onNotify={onNotify}
+      />
+    );
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith({ kind: "accounts" })
+    );
+    expect(onNotify).toHaveBeenCalledWith("Forbidden", "error");
+  });
+
+  test("missing profile redirects away", async () => {
+    mockList.mockResolvedValue([]);
+    const navigate = vi.fn();
+    const onNotify = vi.fn();
+    stubFeatures("alice");
+    render(
+      <AccountDetailView
+        username="bob"
+        navigate={navigate}
+        onNotify={onNotify}
+      />
+    );
+    await waitFor(() =>
+      expect(navigate).toHaveBeenCalledWith({ kind: "account", username: "alice" })
+    );
+    expect(onNotify).toHaveBeenCalledWith(strings.requestFailed, "error");
+    expect(mockTree).not.toHaveBeenCalled();
+  });
+});
+
+describe("avatarCacheKey", () => {
+  test("includes avatar value so overwrite busts cache", async () => {
+    const { avatarCacheKey } = await import("../../UserAvatar");
+    const url = "/api/accounts/alice/avatar";
+    expect(avatarCacheKey(url, { kind: "upload", value: "111" })).toBe(
+      `${url}#111`
+    );
+    expect(avatarCacheKey(url, { kind: "upload", value: "222" })).toBe(
+      `${url}#222`
+    );
+    expect(avatarCacheKey(url, null)).toBe(`${url}#`);
+  });
 });
