@@ -681,12 +681,16 @@ function Main({
       )}
       {route.kind === "accounts" && (
         <Box onScroll={handleContentScroll} sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", pb: { xs: 8, sm: 0 } }}>
-          <AccountsView />
+          <AccountsView navigate={navigate} onNotify={onNotify} />
         </Box>
       )}
       {route.kind === "account" && (
         <Box onScroll={handleContentScroll} sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", pb: { xs: 8, sm: 0 } }}>
-          <AccountDetailView username={route.username} />
+          <AccountDetailView
+            username={route.username}
+            navigate={navigate}
+            onNotify={onNotify}
+          />
         </Box>
       )}
       {route.kind === "setup" && (
