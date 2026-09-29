@@ -409,7 +409,14 @@ args='{"slug":"e2eqa","source":"'"$PUBLISH_SRC"'"}'
 assert_contains "mcp publish_site" "$(mcp_call publish_site "$args")" 'e2eqa'
 args='{"name":"e2e.png","encoding":"base64","content":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}'
 IMG_JSON=$(mcp_call image_upload "$args")
-assert_contains "mcp image_upload url" "$IMG_JSON" '/i/'
+# Direct IMAGE_PUBLIC_HOST urls are https://host/key; SITES_HOST mode uses /i/{id}.
+if echo "$IMG_JSON" | grep -Eq '"url":"https://[^"]+'; then
+  ok "mcp image_upload url"
+elif echo "$IMG_JSON" | grep -q '/i/'; then
+  ok "mcp image_upload url"
+else
+  bad "mcp image_upload url" "$IMG_JSON" "https://… or /i/"
+fi
 assert_contains "mcp image_upload markdown" "$IMG_JSON" '![]('
 IMG_ID=$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('id',''))" "$IMG_JSON")
 if [ -n "$IMG_ID" ]; then ok "mcp image_upload id"; else bad "mcp image_upload id" "empty" "id"; fi

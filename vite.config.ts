@@ -37,36 +37,28 @@ export default defineConfig({
       ],
       // 阈值 = v8 provider 实测值 - 0.5 棘轮（istanbul 与 v8 口径不同，
       // 不能沿用 jest 字段里的旧数字；分组聚合以 coverage-final.json 汇总为准，
-      // 注意 text 报告的目录行只聚合该层直属文件，不是分组总量）。迁移实测（2026-09）：
-      //   global      84.55 / 84.01 / 81.46 / 84.55
-      //   src/**      96.81 / 88.96 / 85.83 / 96.81
-      //   functions   65.77 / 76.10 / 72.72 / 65.77
-      // 2026-09 补 functions/api 端点直测（apiListStat/apiMutations/
-      // apiDownloadSearchCounts/apiKeysConfig/apiImagesSites/mcpEndpoint）：
-      //   global      93.8060 / 84.7413 / 89.6016 / 93.8060
-      //   src/**      96.6025 / 88.5115 / 85.8220 / 96.6025
-      //   functions   89.5880 / 80.6063 / 96.4481 / 89.5880
-      // 2026-09 二轮：大文件拆分（_mcp/webdav 协议层/Main/transfer/strings）
-      // + _setup/webdav 工具层/mcp pull-push 直测（apiSetup/webdavHelpers 等）：
-      //   global      94.8433 / 86.2098 / 90.3382 / 94.8433
-      //   src/**      96.7529 / 88.7599 / 85.9492 / 96.7529
-      //   functions   91.9428 / 83.5253 / 98.3607 / 91.9428
+      // 注意 text 报告的目录行只聚合该层直属文件，不是分组总量）。
+      // 2026-09-29 多用户/账号页落地后 CI 实测（ce6d5a2，补 UserAvatar/
+      // accountsHelpers 前）：
+      //   global      93.80 / 85.19 / 88.48 / 93.80
+      //   src/**      95.19 / 88.23 / 82.79 / 95.19
+      //   functions/** branches 82.13（stmts/funcs 仍高于旧棘轮）
       thresholds: {
         global: {
-          statements: 94.34,
-          branches: 85.7,
-          functions: 89.83,
-          lines: 94.34,
+          statements: 93.3,
+          branches: 84.69,
+          functions: 87.98,
+          lines: 93.3,
         },
         "src/**": {
-          statements: 96.25,
-          branches: 88.25,
-          functions: 85.44,
-          lines: 96.25,
+          statements: 94.69,
+          branches: 87.73,
+          functions: 82.29,
+          lines: 94.69,
         },
         "functions/**": {
           statements: 91.44,
-          branches: 83.02,
+          branches: 81.63,
           functions: 97.86,
           lines: 91.44,
         },

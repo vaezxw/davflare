@@ -213,4 +213,39 @@ describe("accounts helpers", () => {
       truncated: false,
     });
   });
+
+  test("listTreeChildren rejects traversal and lists admin root", async () => {
+    const bucket = new InMemoryBucket();
+    bucket.seedDir("docs");
+    bucket.seed([
+      { key: "readme.txt", body: "hi" },
+      { key: "docs/a.txt", body: "a" },
+      { key: "_$flaredrive$/hidden", body: "x" },
+    ]);
+
+    const bad = await listTreeChildren(bucket.asBucket(), "", "a/../b");
+    expect(bad.children).toEqual([]);
+    expect(bad.summary.fileCount).toBe(0);
+
+    const nullByte = await listTreeChildren(bucket.asBucket(), "", "a\0b");
+    expect(nullByte.children).toEqual([]);
+
+    const root = await listTreeChildren(bucket.asBucket(), "", "");
+    expect(root.children.map((c) => c.key).sort()).toEqual(["docs", "readme.txt"]);
+    expect(root.children.find((c) => c.key === "docs")?.isDir).toBe(true);
+    expect(root.summary.fileCount).toBe(2);
+  });
+
+  test("listTreeChildren marks virtual dirs and sorts dirs first", async () => {
+    const bucket = new InMemoryBucket();
+    // Virtual folder via child only (no directory marker).
+    bucket.seed([
+      { key: "homes/alice/z.txt", body: "z" },
+      { key: "homes/alice/alpha/x.txt", body: "x" },
+    ]);
+    const root = await listTreeChildren(bucket.asBucket(), "homes/alice/", "");
+    expect(root.children[0]?.isDir).toBe(true);
+    expect(root.children[0]?.key).toBe("alpha");
+    expect(root.children[1]?.key).toBe("z.txt");
+  });
 });
