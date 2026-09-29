@@ -60,9 +60,9 @@ function SettingsView({
   const [resetValue, setResetValue] = useState("");
 
   useEffect(() => {
-    if (!config.admin) return;
+    if (!config?.admin) return;
     listAccountUsers().then(setUsers).catch((error) => onNotify(errorMessage(error), "error"));
-  }, [config.admin, onNotify]);
+  }, [config?.admin, onNotify]);
 
   const savePassword = async () => {
     if (newPassword !== confirmPassword) {
@@ -180,7 +180,7 @@ function SettingsView({
           {strings.savePassword}
         </Button>
       </Stack>
-      {config.admin && (
+      {config?.admin && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1">{strings.accountsTitle}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{strings.accountsHint}</Typography>
