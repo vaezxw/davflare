@@ -1,7 +1,7 @@
 # Accounts management page — design
 
 **Date:** 2026-09-29  
-**Status:** Approved in chat; awaiting spec file review before implementation plan  
+**Status:** Implemented (see plan 2026-09-29-accounts-page.md)  
 **Related:** multi-user homes (`homes/<user>/`), settings account cards, WebDAV jail
 
 ## Problem
