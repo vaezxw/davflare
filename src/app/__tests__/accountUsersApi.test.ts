@@ -180,6 +180,33 @@ describe("/api/users", () => {
     expect((await create()).status).toBe(409);
   });
 
+  test("rejects invalid username and short password with distinct errors", async () => {
+    const bucket = new InMemoryBucket();
+    const badName = await createUser(
+      makeContext(
+        request("/api/users", "POST", "admin", "bootstrap-password", {
+          username: "Alice_1",
+          password: "long-enough",
+        }),
+        env(bucket)
+      )
+    );
+    expect(badName.status).toBe(400);
+    expect(await badName.text()).toBe("Invalid username");
+
+    const shortPassword = await createUser(
+      makeContext(
+        request("/api/users", "POST", "admin", "bootstrap-password", {
+          username: "test",
+          password: "123456",
+        }),
+        env(bucket)
+      )
+    );
+    expect(shortPassword.status).toBe(400);
+    expect(await shortPassword.text()).toBe("Password is too short");
+  });
+
   test("ordinary users cannot administer users", async () => {
     const bucket = new InMemoryBucket();
     await putStoredUser(

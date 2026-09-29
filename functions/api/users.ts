@@ -51,17 +51,26 @@ export const onRequestPost: PagesFunction<UsersEnv> = async (context) => {
   } catch {
     return textResponse("Bad Request", 400);
   }
-  const username = typeof body.username === "string" ? body.username : "";
+  const username =
+    typeof body.username === "string" ? body.username.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  if (!isValidUsername(username) || password.length < MIN_PASSWORD_LENGTH) {
-    return textResponse("Invalid user", 400);
+  if (!isValidUsername(username)) {
+    return textResponse("Invalid username", 400);
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return textResponse("Password is too short", 400);
   }
   if (username === context.env.WEBDAV_USERNAME || (await getStoredUser(context.env.BUCKET, username))) {
     return textResponse("User exists", 409);
   }
-  const user = await createStoredUser(username, password, { role: "user" });
-  await putStoredUser(context.env.BUCKET, user);
-  return jsonResponse(toPublicUser(user), 201);
+  try {
+    const user = await createStoredUser(username, password, { role: "user" });
+    await putStoredUser(context.env.BUCKET, user);
+    return jsonResponse(toPublicUser(user), 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to create user";
+    return textResponse(message, 500);
+  }
 };
 
 export const onRequestPatch: PagesFunction<UsersEnv> = async (context) => {

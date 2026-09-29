@@ -539,6 +539,14 @@ const entries: Record<string, DictionaryEntry> = {
   passwordChangeFailed: { zh: "修改密码失败", en: "Failed to change password" },
   accountsTitle: { zh: "账号", en: "Accounts" },
   accountsHint: { zh: "新账号只能看到自己的文件。管理员可以看到全部。", en: "New accounts only see their own files. Administrators can see everything." },
+  accountUsernameHint: {
+    zh: "仅小写字母、数字和连字符",
+    en: "Lowercase letters, numbers, and hyphens only",
+  },
+  passwordMinLengthHint: {
+    zh: "至少 8 位",
+    en: "At least 8 characters",
+  },
   createAccount: { zh: "新建账号", en: "Create account" },
   accountUsername: { zh: "用户名", en: "Username" },
   resetPassword: { zh: "重置密码", en: "Reset password" },

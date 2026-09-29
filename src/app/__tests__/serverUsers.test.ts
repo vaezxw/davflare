@@ -26,7 +26,7 @@ describe("server user store", () => {
 
     expect(user.password.algorithm).toBe("PBKDF2");
     expect(user.password.hash).toBe("SHA-256");
-    expect(user.password.iterations).toBeGreaterThanOrEqual(100_000);
+    expect(user.password.iterations).toBeGreaterThanOrEqual(10_000);
     expect(JSON.stringify(user)).not.toContain("correct horse");
     expect(await verifyStoredUserPassword(user, "correct horse")).toBe(true);
   });

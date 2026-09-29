@@ -174,7 +174,7 @@ function SettingsView({
       <Typography variant="subtitle1" sx={{ mb: 1 }}>{strings.changePasswordTitle}</Typography>
       <Stack spacing={1.5} sx={{ mb: 3 }}>
         <TextField label={strings.currentPassword} type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
-        <TextField label={strings.newPassword} type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+        <TextField label={strings.newPassword} type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} helperText={strings.passwordMinLengthHint} />
         <TextField label={strings.confirmPassword} type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
         <Button variant="contained" disabled={savingPassword} onClick={() => void savePassword()}>
           {strings.savePassword}
@@ -184,10 +184,21 @@ function SettingsView({
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle1">{strings.accountsTitle}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{strings.accountsHint}</Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }}>
-            <TextField label={strings.accountUsername} value={newUsername} onChange={(event) => setNewUsername(event.target.value)} />
-            <TextField label={strings.newPassword} type="password" value={newUserPassword} onChange={(event) => setNewUserPassword(event.target.value)} />
-            <Button variant="outlined" onClick={() => void createUser()}>{strings.createAccount}</Button>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 1 }} alignItems={{ sm: "flex-start" }}>
+            <TextField
+              label={strings.accountUsername}
+              value={newUsername}
+              onChange={(event) => setNewUsername(event.target.value)}
+              helperText={strings.accountUsernameHint}
+            />
+            <TextField
+              label={strings.newPassword}
+              type="password"
+              value={newUserPassword}
+              onChange={(event) => setNewUserPassword(event.target.value)}
+              helperText={strings.passwordMinLengthHint}
+            />
+            <Button variant="outlined" onClick={() => void createUser()} sx={{ mt: { sm: 1 } }}>{strings.createAccount}</Button>
           </Stack>
           <Stack spacing={1}>
             {users.map((user) => (

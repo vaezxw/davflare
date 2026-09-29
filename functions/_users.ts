@@ -1,7 +1,9 @@
 import { parseBasicAuthHeader, timingSafeEqual } from "./api/_apikey";
 
 export const USERS_PREFIX = "_$flaredrive$/users/";
-export const PASSWORD_ITERATIONS = 210_000;
+// Keep this low enough for Cloudflare Workers Free (≈10ms CPU/request).
+// Higher counts (e.g. 210k) exceed the limit and return Error 1101.
+export const PASSWORD_ITERATIONS = 10_000;
 
 export type UserRole = "admin" | "user";
 
