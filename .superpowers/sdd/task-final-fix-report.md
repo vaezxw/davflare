@@ -44,4 +44,4 @@ New / adjusted coverage:
 ## Commit
 
 - **Subject:** `fix: avatar cache bust, stats scan cap, accounts 403 redirect`
-- **SHA:** _(filled after commit)_
+- **SHA:** `b08a2fdc14bdef8b80f3c4ec0a84a1730f65deba`
