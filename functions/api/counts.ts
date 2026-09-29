@@ -3,8 +3,8 @@ import {
   jsonResponse,
   normalizeDirKey,
   textResponse,
-  verifyBasicAuth,
 } from "./_apikey";
+import { authenticateBasicPrincipal, scopeStoragePath } from "../_users";
 
 interface CountsEnv {
   BUCKET: R2Bucket;
@@ -49,7 +49,13 @@ async function countDirectChildren(
  */
 export const onRequestPost: PagesFunction<CountsEnv> = async (context) => {
   const { request, env } = context;
-  if (!verifyBasicAuth(request, env.WEBDAV_USERNAME, env.WEBDAV_PASSWORD)) {
+  const principal = await authenticateBasicPrincipal(
+    request,
+    env.BUCKET,
+    env.WEBDAV_USERNAME,
+    env.WEBDAV_PASSWORD
+  );
+  if (!principal) {
     return textResponse("Unauthorized", 401);
   }
 
@@ -61,14 +67,17 @@ export const onRequestPost: PagesFunction<CountsEnv> = async (context) => {
   }
   const rawPaths = Array.isArray(body.paths) ? body.paths : [];
   const paths = rawPaths.map(String).slice(0, MAX_COUNT_PATHS);
+  const homePrefix = principal.homePrefix;
 
   const counts: Record<string, number> = {};
   await Promise.all(
     paths.map(async (raw) => {
       const key = normalizeDirKey(raw);
       if (key instanceof Response) return;
+      const storageKey = scopeStoragePath(homePrefix, key);
+      if (storageKey === null) return;
       try {
-        counts[key] = await countDirectChildren(env.BUCKET, key);
+        counts[key] = await countDirectChildren(env.BUCKET, storageKey);
       } catch {
         // 单个目录统计失败静默跳过
       }

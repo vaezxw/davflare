@@ -316,6 +316,35 @@ describe("counts", () => {
     expect(body.counts).toEqual({ docs: 3, ghost: 0 });
   });
 
+  test("普通账号可计数，且只统计家目录内路径", async () => {
+    const { createStoredUser, putStoredUser } = await import(
+      "../../../functions/_users"
+    );
+    const bucket = new InMemoryBucket();
+    await putStoredUser(
+      bucket.asBucket(),
+      await createStoredUser("alice", "alice-password", { role: "user" })
+    );
+    bucket.seedDir("homes/alice/docs");
+    bucket.seed([
+      { key: "homes/alice/docs/a.txt", body: "A" },
+      { key: "homes/alice/docs/b.txt", body: "B" },
+      { key: "docs/secret.txt", body: "nope" },
+    ]);
+
+    const request = new Request(`${HOST}/api/counts`, {
+      method: "POST",
+      headers: {
+        Authorization: basicAuthHeader("alice", "alice-password"),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ paths: ["docs"] }),
+    });
+    const response = await countsOnPost(makeContext(request, makeEnv(bucket)));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ counts: { docs: 2 } });
+  });
+
   test("非数组 paths 返回空 counts；非法路径跳过；上限 100 条", async () => {
     const bucket = new InMemoryBucket();
     const notArray = await postCounts(bucket, { paths: "docs" });
